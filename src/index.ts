@@ -60,5 +60,5 @@ bot.command("find", async (ctx) => {
 });
 
 bot.catch((error) => console.error("Telegram update failed", error));
-await bot.start({ drop_pending_updates: false });
 console.info("Bot is running");
+await bot.start({ drop_pending_updates: false });
