@@ -27,6 +27,19 @@ const allowed = (chatId: number): boolean => allowedChats.has(String(chatId));
 
 const chatUsername = (chat: { username?: string }): string | undefined => chat.username;
 
+// Receipt telemetry: contains no message text or image data, only update shape.
+bot.use(async (ctx, next) => {
+  const message = ctx.update.message;
+  if (message) {
+    console.info(
+      `received chat=${message.chat.id} message=${message.message_id}`
+      + ` photo=${"photo" in message} caption=${"caption" in message}`
+      + ` text=${"text" in message} reply=${message.reply_to_message?.message_id ?? "-"}`,
+    );
+  }
+  await next();
+});
+
 bot.command("start", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
   await ctx.reply("Готово. Додай #AA1234BB у підпис до фото або надішли його відповіддю на фото.\nПошук: /find AA1234BB");
