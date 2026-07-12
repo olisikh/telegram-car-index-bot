@@ -6,6 +6,7 @@ import { SqliteIndexStore } from "./database.js";
 import { indexPhotoMessage } from "./indexing.js";
 import { normalizePlate } from "./plates.js";
 import { runLongPolling } from "./polling.js";
+import { indexTaggedPhotoReply } from "./tagged-photo.js";
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) throw new Error("TELEGRAM_BOT_TOKEN is required");
@@ -28,7 +29,7 @@ const chatUsername = (chat: { username?: string }): string | undefined => chat.u
 
 bot.command("start", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  await ctx.reply("Готово. Додавай хештег з номером у підпис до фото: #AA1234BB\nПошук: /find AA1234BB");
+  await ctx.reply("Готово. Додай #AA1234BB у підпис до фото або надішли його відповіддю на фото.\nПошук: /find AA1234BB");
 });
 
 bot.on("message:photo", async (ctx) => {
@@ -38,6 +39,19 @@ bot.on("message:photo", async (ctx) => {
     messageId: ctx.message.message_id,
     chatUsername: chatUsername(ctx.chat),
     caption: ctx.message.caption,
+  }));
+});
+
+bot.on("message:text", async (ctx) => {
+  if (!allowed(ctx.chat.id)) return;
+  const photo = ctx.message.reply_to_message;
+  if (!photo?.photo) return;
+
+  await Effect.runPromise(indexTaggedPhotoReply(database, {
+    chatId: ctx.chat.id,
+    photoMessageId: photo.message_id,
+    chatUsername: chatUsername(ctx.chat),
+    text: ctx.message.text,
   }));
 });
 

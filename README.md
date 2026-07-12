@@ -4,11 +4,18 @@ Indexes Telegram **photo messages** whose captions contain Ukrainian vehicle reg
 
 ## Usage in the group
 
-Send a hashtagged number in the **caption of the photo**:
+Send a hashtagged number in either of two ways:
 
-```text
-#AA1234BB
-```
+1. In the **caption of the photo**:
+   ```text
+   #AA1234BB
+   ```
+2. As a text message **replying to that photo**:
+   ```text
+   #AA1234BB
+   ```
+
+The reply form indexes the linked photo, not the tag message itself.
 
 Search later:
 
