@@ -15,7 +15,7 @@ describe("indexTaggedPhotoReply", () => {
     }));
 
     expect(saved).toEqual([
-      { plate: "AA1234BB", chatId: -1001234567890, messagePreview: "Фото", messageUrl: "https://t.me/c/1234567890/41" },
+      { plate: "AA1234BB", chatId: -1001234567890, messagePreview: "Мультимедіа", messageUrl: "https://t.me/c/1234567890/41" },
     ]);
   });
 

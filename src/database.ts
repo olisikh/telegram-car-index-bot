@@ -20,7 +20,7 @@ export class SqliteIndexStore implements IndexStore {
         plate TEXT NOT NULL,
         chat_id INTEGER NOT NULL DEFAULT 0,
         message_url TEXT NOT NULL,
-        message_preview TEXT NOT NULL DEFAULT 'Фото',
+        message_preview TEXT NOT NULL DEFAULT 'Мультимедіа',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(plate, chat_id, message_url)
       );
@@ -30,8 +30,9 @@ export class SqliteIndexStore implements IndexStore {
       this.database.exec("ALTER TABLE indexed_messages ADD COLUMN chat_id INTEGER NOT NULL DEFAULT 0");
     }
     if (!columns.some((column) => column.name === "message_preview")) {
-      this.database.exec("ALTER TABLE indexed_messages ADD COLUMN message_preview TEXT NOT NULL DEFAULT 'Фото'");
+      this.database.exec("ALTER TABLE indexed_messages ADD COLUMN message_preview TEXT NOT NULL DEFAULT 'Мультимедіа'");
     }
+    this.database.prepare("UPDATE indexed_messages SET message_preview = 'Мультимедіа' WHERE message_preview = 'Фото'").run();
     const legacyRecords = this.database.prepare(`
       SELECT rowid, message_url AS messageUrl
       FROM indexed_messages

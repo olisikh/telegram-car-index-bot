@@ -44,10 +44,10 @@ bot.use(async (ctx, next) => {
 
 bot.command("start", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  await ctx.reply("Готово. Надішли /car AA1234BB як повідомлення або підпис до фото.\nПошук: /find AA1234BB");
+  await ctx.reply("Готово. Надішли /car AA1234BB як повідомлення або підпис до фото чи відео.\nПошук: /find AA1234BB");
 });
 
-bot.on("message:photo", async (ctx) => {
+bot.on(["message:photo", "message:video"], async (ctx) => {
   if (!allowed(ctx.chat.id) || !ctx.message.caption) return;
   const plate = carCommandPlate(ctx.message.caption);
   if (!plate) return;

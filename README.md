@@ -4,7 +4,7 @@ Indexes Telegram **photo messages** whose captions contain Ukrainian vehicle reg
 
 ## Usage in the group
 
-Send a `/car` command as a regular message or as a photo caption:
+Send a `/car` command as a regular message or as a photo/video caption:
 
 ```text
 /car AA1234BB
@@ -24,9 +24,9 @@ Search later:
 /find AA1234BB
 ```
 
-Each result includes a clickable `відкрити` link and a normalized preview stored at a maximum of 66 symbols. For `/car AA1234BB maintenance complete`, the preview is `maintenance complete`; for a photo without a note it is `Фото`.
+Each result includes a clickable `відкрити` link and a normalized preview stored at a maximum of 66 symbols. For `/car AA1234BB maintenance complete`, the preview is `maintenance complete`; for photo or video without a note it is `Мультимедіа`.
 
-The bot normalizes Ukrainian/Latin lookalikes (`АА1234ВВ` becomes `AA1234BB`) but requires a contiguous plate token. It stores the normalized plate, a compact preview, and the original Telegram message URL — not a duplicate of the photo.
+The bot normalizes Ukrainian/Latin lookalikes (`АА1234ВВ` becomes `AA1234BB`) but requires a contiguous plate token. It stores the normalized plate, a compact preview, and the original Telegram message URL — not a duplicate of the media.
 
 ## Run locally
 

@@ -42,7 +42,9 @@ describe("SqliteIndexStore", () => {
     legacy.close();
 
     const store = new SqliteIndexStore(path);
-    await expect(Effect.runPromise(store.find("AA1234BB", -1001400317169))).resolves.toHaveLength(1);
+    await expect(Effect.runPromise(store.find("AA1234BB", -1001400317169))).resolves.toMatchObject([
+      { messagePreview: "Мультимедіа" },
+    ]);
     store.close();
     rmSync(directory, { recursive: true, force: true });
   });
