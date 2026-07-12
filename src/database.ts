@@ -28,6 +28,16 @@ export class SqliteIndexStore implements IndexStore {
     if (!columns.some((column) => column.name === "chat_id")) {
       this.database.exec("ALTER TABLE indexed_messages ADD COLUMN chat_id INTEGER NOT NULL DEFAULT 0");
     }
+    const legacyRecords = this.database.prepare(`
+      SELECT rowid, message_url AS messageUrl
+      FROM indexed_messages
+      WHERE chat_id = 0
+    `).all() as Array<{ rowid: number; messageUrl: string }>;
+    const updateLegacyChat = this.database.prepare("UPDATE indexed_messages SET chat_id = ? WHERE rowid = ?");
+    for (const record of legacyRecords) {
+      const internalId = /^https:\/\/t\.me\/c\/(\d+)\/\d+$/u.exec(record.messageUrl)?.[1];
+      if (internalId) updateLegacyChat.run(Number(`-100${internalId}`), record.rowid);
+    }
     this.database.exec(`
       CREATE INDEX IF NOT EXISTS indexed_messages_plate_chat
       ON indexed_messages(plate, chat_id);
