@@ -1,11 +1,13 @@
 import { Effect } from "effect";
 import { messageLink } from "./message-link.js";
+import { carMessagePreview } from "./message-preview.js";
 import { extractPlates } from "./plates.js";
 
 export interface IndexRecord {
   readonly plate: string;
   readonly chatId: number;
   readonly messageUrl: string;
+  readonly messagePreview: string;
 }
 
 export interface IndexStore {
@@ -24,6 +26,7 @@ export const indexPhotoMessage = (store: IndexStore, message: PhotoMessage): Eff
     store.save({
       plate,
       chatId: message.chatId,
+      messagePreview: carMessagePreview(message.caption, true),
       messageUrl: messageLink({
         chatId: message.chatId,
         messageId: message.messageId,

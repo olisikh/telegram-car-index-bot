@@ -22,6 +22,7 @@ export const indexTaggedPhotoReply = (
   return store.save({
     plate,
     chatId: reply.chatId,
+    messagePreview: "Фото",
     messageUrl: messageLink({
       chatId: reply.chatId,
       messageId: reply.photoMessageId,

@@ -5,6 +5,7 @@ import { groupCommands } from "./commands.js";
 import { carCommandPlate } from "./car-command.js";
 import { indexCarMessage } from "./car-indexing.js";
 import { SqliteIndexStore } from "./database.js";
+import { formatFindResult } from "./find-results.js";
 import { normalizePlate } from "./plates.js";
 import { runLongPolling } from "./polling.js";
 import { indexTaggedPhotoReply } from "./tagged-photo.js";
@@ -56,6 +57,7 @@ bot.on("message:photo", async (ctx) => {
     messageId: ctx.message.message_id,
     chatUsername: chatUsername(ctx.chat),
     text: ctx.message.caption,
+    hasMedia: true,
   }));
   await ctx.reply(`✅ Збережено ${plate}`);
 });
@@ -90,6 +92,7 @@ bot.command("car", async (ctx) => {
     messageId: message.message_id,
     chatUsername: chatUsername(ctx.chat),
     text: message.text,
+    hasMedia: false,
   }));
   await ctx.reply(`✅ Збережено ${plate}`);
 });
@@ -108,8 +111,9 @@ bot.command("find", async (ctx) => {
     return;
   }
 
-  const links = results.map((result, index) => `${index + 1}. ${result.messageUrl}`);
+  const links = results.map((result, index) => formatFindResult(result, index + 1));
   await ctx.reply(`Знайдено ${results.length} повідомлень для ${plate}:\n${links.join("\n")}`, {
+    parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
   });
 });

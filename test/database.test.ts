@@ -10,10 +10,10 @@ describe("SqliteIndexStore", () => {
   it("returns a plate only from the requested chat", async () => {
     const store = new SqliteIndexStore(":memory:");
     await Effect.runPromise(store.save({
-      plate: "AA1234BB", chatId: -100111, messageUrl: "https://t.me/c/111/42",
+      plate: "AA1234BB", chatId: -100111, messageUrl: "https://t.me/c/111/42", messagePreview: "first service",
     }));
     await Effect.runPromise(store.save({
-      plate: "AA1234BB", chatId: -100222, messageUrl: "https://t.me/c/222/99",
+      plate: "AA1234BB", chatId: -100222, messageUrl: "https://t.me/c/222/99", messagePreview: "second service",
     }));
 
     await expect(Effect.runPromise(store.find("AA1234BB", -100111))).resolves.toMatchObject([
