@@ -2,6 +2,7 @@ import "dotenv/config";
 import { Bot } from "grammy";
 import { Effect } from "effect";
 import { groupCommands } from "./commands.js";
+import { carCommandPlate } from "./car-command.js";
 import { SqliteIndexStore } from "./database.js";
 import { indexPhotoMessage } from "./indexing.js";
 import { normalizePlate } from "./plates.js";
@@ -42,17 +43,19 @@ bot.use(async (ctx, next) => {
 
 bot.command("start", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  await ctx.reply("Готово. Додай #AA1234BB у підпис до фото або надішли його відповіддю на фото.\nПошук: /find AA1234BB");
+  await ctx.reply("Готово. Для надійної індексації: фото з підписом /car AA1234BB.\nПошук: /find AA1234BB");
 });
 
 bot.on("message:photo", async (ctx) => {
   if (!allowed(ctx.chat.id) || !ctx.message.caption) return;
+  const commandPlate = carCommandPlate(ctx.message.caption);
   await Effect.runPromise(indexPhotoMessage(database, {
     chatId: ctx.chat.id,
     messageId: ctx.message.message_id,
     chatUsername: chatUsername(ctx.chat),
     caption: ctx.message.caption,
   }));
+  if (commandPlate) await ctx.reply(`✅ Збережено ${commandPlate}`);
 });
 
 bot.on("message:text", async (ctx, next) => {
@@ -68,6 +71,11 @@ bot.on("message:text", async (ctx, next) => {
     }
   }
   await next();
+});
+
+bot.command("car", async (ctx) => {
+  if (!allowed(ctx.chat.id)) return;
+  await ctx.reply("Надішли фото з підписом: /car AA1234BB");
 });
 
 bot.command("find", async (ctx) => {

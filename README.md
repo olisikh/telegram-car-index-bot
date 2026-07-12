@@ -4,18 +4,13 @@ Indexes Telegram **photo messages** whose captions contain Ukrainian vehicle reg
 
 ## Usage in the group
 
-Send a hashtagged number in either of two ways:
+For reliable delivery in this group, send the photo with this **caption**:
 
-1. In the **caption of the photo**:
-   ```text
-   #AA1234BB
-   ```
-2. As a text message **replying to that photo**:
-   ```text
-   #AA1234BB
-   ```
+```text
+/car AA1234BB
+```
 
-The reply form indexes the linked photo, not the tag message itself.
+`/car` is a Telegram command, so it is delivered even in groups where ordinary photo updates are not reaching the bot. The bot replies `✅ Збережено AA1234BB` when it has indexed the photo.
 
 Search later:
 
