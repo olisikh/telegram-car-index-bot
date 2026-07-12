@@ -55,17 +55,19 @@ bot.on("message:photo", async (ctx) => {
   }));
 });
 
-bot.on("message:text", async (ctx) => {
-  if (!allowed(ctx.chat.id)) return;
-  const repliedMessage = ctx.message.reply_to_message;
-  if (!repliedMessage) return;
-
-  await Effect.runPromise(indexTaggedPhotoReply(database, {
-    chatId: ctx.chat.id,
-    photoMessageId: repliedMessage.message_id,
-    chatUsername: chatUsername(ctx.chat),
-    text: ctx.message.text,
-  }));
+bot.on("message:text", async (ctx, next) => {
+  if (allowed(ctx.chat.id)) {
+    const repliedMessage = ctx.message.reply_to_message;
+    if (repliedMessage) {
+      await Effect.runPromise(indexTaggedPhotoReply(database, {
+        chatId: ctx.chat.id,
+        photoMessageId: repliedMessage.message_id,
+        chatUsername: chatUsername(ctx.chat),
+        text: ctx.message.text,
+      }));
+    }
+  }
+  await next();
 });
 
 bot.command("find", async (ctx) => {
