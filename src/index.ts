@@ -5,6 +5,7 @@ import { groupCommands } from "./commands.js";
 import { SqliteIndexStore } from "./database.js";
 import { indexPhotoMessage } from "./indexing.js";
 import { normalizePlate } from "./plates.js";
+import { runLongPolling } from "./polling.js";
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) throw new Error("TELEGRAM_BOT_TOKEN is required");
@@ -60,7 +61,6 @@ bot.command("find", async (ctx) => {
   });
 });
 
-bot.catch((error) => console.error("Telegram update failed", error));
 await bot.api.setMyCommands(groupCommands, { scope: { type: "all_group_chats" } });
 console.info("Bot is running");
-await bot.start({ drop_pending_updates: false });
+await runLongPolling(bot);
