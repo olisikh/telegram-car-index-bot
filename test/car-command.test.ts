@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { carCommandPlate } from "../src/car-command.js";
 
 describe("carCommandPlate", () => {
-  it("reads a Ukrainian plate from a /car photo caption", () => {
-    expect(carCommandPlate("/car АА 1234 ВВ")).toBe("AA1234BB");
+  it("uses the first word after /car as the plate and ignores the remaining message", () => {
+    expect(carCommandPlate("/car АА1234ВВ maintenance complete")).toBe("AA1234BB");
   });
 
   it("does not treat an ordinary caption as a /car command", () => {

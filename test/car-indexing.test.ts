@@ -11,7 +11,7 @@ describe("indexCarMessage", () => {
     await Effect.runPromise(indexCarMessage(store, {
       chatId: -1001234567890,
       messageId: 73,
-      text: "/car АА 1234 ВВ",
+      text: "/car АА1234ВВ maintenance complete",
     }));
 
     expect(saved).toEqual([

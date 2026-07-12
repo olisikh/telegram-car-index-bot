@@ -10,7 +10,13 @@ Send a `/car` command as a regular message or as a photo caption:
 /car AA1234BB
 ```
 
-Every valid `/car <plate>` message is indexed, whether or not it contains a photo. The bot replies `✅ Збережено AA1234BB` when it has recorded the message.
+Every valid `/car <plate>` message is indexed, whether or not it contains a photo. The first word after `/car` must be a valid plate; the rest of the message is ignored by the index, so this works:
+
+```text
+/car AA1234BB maintenance complete
+```
+
+The bot replies `✅ Збережено AA1234BB` when it has recorded the message.
 
 Search later:
 
