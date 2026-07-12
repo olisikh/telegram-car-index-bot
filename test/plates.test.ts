@@ -2,22 +2,39 @@ import { describe, expect, it } from "vitest";
 import { extractPlates, normalizePlate } from "../src/plates.js";
 
 describe("normalizePlate", () => {
-  it("normalizes whitespace, case, and Ukrainian lookalike characters", () => {
-    expect(normalizePlate(" аА 1234 вВ ")).toBe("AA1234BB");
+  it("normalizes case and Ukrainian lookalike characters in a jammed Ukrainian plate", () => {
+    expect(normalizePlate("аА1234вВ")).toBe("AA1234BB");
   });
 
-  it("returns undefined for a non-Ukrainian-plate value", () => {
+  it("rejects plate values containing separators or spaces", () => {
+    expect(normalizePlate("AA 1234 BB")).toBeUndefined();
+    expect(normalizePlate("AA-1234-BB")).toBeUndefined();
+  });
+
+  it.each([
+    ["Poland", "WX1234A"],
+    ["Germany", "BAB1234"],
+    ["Lithuania", "ABC123"],
+    ["Romania", "B123ABC"],
+    ["Slovakia", "BA123CD"],
+    ["Hungary", "ABCD123"],
+    ["Czechia", "1A23456"],
+  ])("accepts a jammed standard %s plate", (_country, plate) => {
+    expect(normalizePlate(plate)).toBe(plate);
+  });
+
+  it("returns undefined for an unsupported value", () => {
     expect(normalizePlate("not a plate")).toBeUndefined();
   });
 });
 
 describe("extractPlates", () => {
-  it("extracts unique Ukrainian plates from free text", () => {
-    expect(extractPlates("готово: АА 1234 ВВ, повтор AA1234BB; ще KA 0001 AX"))
+  it("extracts unique jammed Ukrainian plates from free text", () => {
+    expect(extractPlates("готово: АА1234ВВ, повтор AA1234BB; ще KA0001AX"))
       .toEqual(["AA1234BB", "KA0001AX"]);
   });
 
-  it("recognizes a hashtagged plate without a #car prefix", () => {
+  it("recognizes a hashtagged jammed plate", () => {
     expect(extractPlates("#АА1234ВВ")).toEqual(["AA1234BB"]);
   });
 });

@@ -3,16 +3,29 @@ const LOOKALIKES: Record<string, string> = {
   М: "M", О: "O", Р: "P", Т: "T", Х: "X",
 };
 
-const UKRAINIAN_PLATE = /^[ABCEHIKMOPTX]{2}\d{4}[ABCEHIKMOPTX]{2}$/;
-const CANDIDATE = /(?<![A-ZА-ЯІЇЄҐ])([A-ZА-ЯІЇЄҐ]{2}\s*\d{4}\s*[A-ZА-ЯІЇЄҐ]{2})(?![A-ZА-ЯІЇЄҐ])/giu;
+// Standard civilian plates, entered as one contiguous token. These patterns are
+// intentionally country-specific rather than a permissive generic EU regex.
+const PLATE_FORMATS: Record<string, RegExp> = {
+  UA: /^[ABCEHIKMOPTX]{2}\d{4}[ABCEHIKMOPTX]{2}$/,
+  PL: /^[A-Z]{2,3}[A-Z0-9]{4,5}$/,
+  DE: /^[A-Z]{2,5}\d{1,4}$/,
+  LT: /^[A-Z]{3}\d{3}$/,
+  RO: /^(?:B|[A-Z]{2})\d{2,3}[A-Z]{3}$/,
+  SK: /^[A-Z]{2}\d{3}[A-Z]{2}$/,
+  HU: /^(?:[A-Z]{3}|[A-Z]{4})\d{3}$/,
+  CZ: /^\d[A-Z]\d{5}$/,
+};
+
+const CANDIDATE = /(?<![A-ZА-ЯІЇЄҐ0-9])([A-ZА-ЯІЇЄҐ]{2}\d{4}[A-ZА-ЯІЇЄҐ]{2})(?![A-ZА-ЯІЇЄҐ0-9])/giu;
 
 export const normalizePlate = (value: string): string | undefined => {
   const normalized = value
     .toUpperCase()
-    .replace(/[АВСЕНІКМОРТХ]/gu, (character) => LOOKALIKES[character] ?? character)
-    .replace(/\s/gu, "");
+    .replace(/[АВСЕНІКМОРТХ]/gu, (character) => LOOKALIKES[character] ?? character);
 
-  return UKRAINIAN_PLATE.test(normalized) ? normalized : undefined;
+  return Object.values(PLATE_FORMATS).some((format) => format.test(normalized))
+    ? normalized
+    : undefined;
 };
 
 export const extractPlates = (text: string): ReadonlyArray<string> =>

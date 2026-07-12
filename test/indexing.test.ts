@@ -13,7 +13,7 @@ describe("indexPhotoMessage", () => {
       chatId: -1001234567890,
       messageId: 42,
       chatUsername: undefined,
-      caption: "#car АА 1234 ВВ; також KA0001AX",
+      caption: "#car АА1234ВВ; також KA0001AX",
     }));
 
     expect(saved).toEqual([
