@@ -15,6 +15,19 @@ describe("formatFindResult", () => {
     expect(`9999. лінк — ${"x".repeat(70)}`).toHaveLength(83);
   });
 
+  it("uses an exact media label when there is no note", () => {
+    const formatted = formatFindResult({
+      plate: "AA1234BB",
+      chatId: -100123,
+      messageUrl: "https://t.me/c/123/42",
+      messagePreview: "Мультимедіа",
+      mediaTypes: "photo,video",
+      createdAt: "2026-07-13 12:00:00",
+    }, 1);
+
+    expect(formatted).toContain("лінк</a> — Фото і Відео");
+  });
+
   it("escapes preview text for Telegram HTML", () => {
     expect(formatFindResult({
       plate: "AA1234BB",

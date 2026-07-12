@@ -24,7 +24,7 @@ Search later:
 /find AA1234BB
 ```
 
-Each result includes a clickable `лінк` and a normalized preview stored at a maximum of 70 symbols. For `/car AA1234BB maintenance complete`, the preview is `maintenance complete`; for photo or video without a note it is `Мультимедіа`.
+Each result includes a clickable `лінк` and a normalized preview stored at a maximum of 70 symbols. For `/car AA1234BB maintenance complete`, the preview is `maintenance complete`. Without a note, new photo and video records show `Фото` or `Відео`; an observed mixed album shows `Фото і Відео`.
 
 The bot normalizes Ukrainian/Latin lookalikes (`АА1234ВВ` becomes `AA1234BB`) but requires a contiguous plate token. It stores the normalized plate, a compact preview, and the original Telegram message URL — not a duplicate of the media.
 

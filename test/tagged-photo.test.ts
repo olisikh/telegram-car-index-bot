@@ -1,21 +1,22 @@
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
-import { indexTaggedPhotoReply } from "../src/tagged-photo.js";
+import { indexTaggedMediaReply } from "../src/tagged-photo.js";
 import type { IndexStore } from "../src/indexing.js";
 
-describe("indexTaggedPhotoReply", () => {
+describe("indexTaggedMediaReply", () => {
   it("indexes the replied-to photo when a text message starts with a plate hashtag", async () => {
     const saved: Array<{ plate: string; chatId: number; messageUrl: string }> = [];
     const store: IndexStore = { save: (record) => Effect.sync(() => { saved.push(record); }) };
 
-    await Effect.runPromise(indexTaggedPhotoReply(store, {
+    await Effect.runPromise(indexTaggedMediaReply(store, {
       chatId: -1001234567890,
-      photoMessageId: 41,
+      mediaMessageId: 41,
+      mediaType: "photo",
       text: "#АА1234ВВ готово",
     }));
 
     expect(saved).toEqual([
-      { plate: "AA1234BB", chatId: -1001234567890, messagePreview: "Мультимедіа", messageUrl: "https://t.me/c/1234567890/41" },
+      { plate: "AA1234BB", chatId: -1001234567890, messagePreview: "Мультимедіа", mediaType: "photo", messageUrl: "https://t.me/c/1234567890/41" },
     ]);
   });
 
@@ -23,9 +24,10 @@ describe("indexTaggedPhotoReply", () => {
     const saved: unknown[] = [];
     const store: IndexStore = { save: (record) => Effect.sync(() => { saved.push(record); }) };
 
-    await Effect.runPromise(indexTaggedPhotoReply(store, {
+    await Effect.runPromise(indexTaggedMediaReply(store, {
       chatId: -1001234567890,
-      photoMessageId: 41,
+      mediaMessageId: 41,
+      mediaType: "photo",
       text: "готово #AA1234BB",
     }));
 

@@ -2,10 +2,19 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import Database from "better-sqlite3";
 import { Effect } from "effect";
+import type { MediaType } from "./media-label.js";
 import type { IndexRecord, IndexStore } from "./indexing.js";
 
 export interface SearchResult extends IndexRecord {
   readonly createdAt: string;
+  readonly mediaTypes?: string;
+}
+
+export interface MediaGroupMember {
+  readonly chatId: number;
+  readonly mediaGroupId: string;
+  readonly messageId: number;
+  readonly mediaType: MediaType;
 }
 
 export class SqliteIndexStore implements IndexStore {
@@ -21,8 +30,17 @@ export class SqliteIndexStore implements IndexStore {
         chat_id INTEGER NOT NULL DEFAULT 0,
         message_url TEXT NOT NULL,
         message_preview TEXT NOT NULL DEFAULT 'Мультимедіа',
+        media_type TEXT,
+        media_group_id TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(plate, chat_id, message_url)
+      );
+      CREATE TABLE IF NOT EXISTS media_group_members (
+        chat_id INTEGER NOT NULL,
+        media_group_id TEXT NOT NULL,
+        message_id INTEGER NOT NULL,
+        media_type TEXT NOT NULL CHECK (media_type IN ('photo', 'video')),
+        PRIMARY KEY (chat_id, media_group_id, message_id)
       );
     `);
     const columns = this.database.prepare("PRAGMA table_info(indexed_messages)").all() as Array<{ name: string }>;
@@ -31,6 +49,12 @@ export class SqliteIndexStore implements IndexStore {
     }
     if (!columns.some((column) => column.name === "message_preview")) {
       this.database.exec("ALTER TABLE indexed_messages ADD COLUMN message_preview TEXT NOT NULL DEFAULT 'Мультимедіа'");
+    }
+    if (!columns.some((column) => column.name === "media_type")) {
+      this.database.exec("ALTER TABLE indexed_messages ADD COLUMN media_type TEXT");
+    }
+    if (!columns.some((column) => column.name === "media_group_id")) {
+      this.database.exec("ALTER TABLE indexed_messages ADD COLUMN media_group_id TEXT");
     }
     this.database.prepare("UPDATE indexed_messages SET message_preview = 'Мультимедіа' WHERE message_preview = 'Фото'").run();
     const legacyRecords = this.database.prepare(`
@@ -46,24 +70,42 @@ export class SqliteIndexStore implements IndexStore {
     this.database.exec(`
       CREATE INDEX IF NOT EXISTS indexed_messages_plate_chat
       ON indexed_messages(plate, chat_id);
+      CREATE INDEX IF NOT EXISTS media_group_members_group
+      ON media_group_members(chat_id, media_group_id);
     `);
   }
 
   readonly save = (record: IndexRecord): Effect.Effect<void> => Effect.sync(() => {
     this.database.prepare(`
-      INSERT INTO indexed_messages (plate, chat_id, message_url, message_preview)
-      VALUES (@plate, @chatId, @messageUrl, @messagePreview)
+      INSERT INTO indexed_messages (plate, chat_id, message_url, message_preview, media_type, media_group_id)
+      VALUES (@plate, @chatId, @messageUrl, @messagePreview, @mediaType, @mediaGroupId)
       ON CONFLICT DO NOTHING
-    `).run(record);
+    `).run({ ...record, mediaType: record.mediaType ?? null, mediaGroupId: record.mediaGroupId ?? null });
+  });
+
+  readonly recordMediaGroupMember = (member: MediaGroupMember): Effect.Effect<void> => Effect.sync(() => {
+    this.database.prepare(`
+      INSERT INTO media_group_members (chat_id, media_group_id, message_id, media_type)
+      VALUES (@chatId, @mediaGroupId, @messageId, @mediaType)
+      ON CONFLICT DO NOTHING
+    `).run(member);
   });
 
   readonly find = (plate: string, chatId: number): Effect.Effect<ReadonlyArray<SearchResult>> => Effect.sync(() =>
     this.database.prepare(`
-      SELECT plate, chat_id AS chatId, message_url AS messageUrl,
-             message_preview AS messagePreview, created_at AS createdAt
-      FROM indexed_messages
-      WHERE plate = ? AND chat_id = ?
-      ORDER BY created_at DESC
+      SELECT im.plate, im.chat_id AS chatId, im.message_url AS messageUrl,
+             im.message_preview AS messagePreview, im.media_type AS mediaType,
+             im.media_group_id AS mediaGroupId, im.created_at AS createdAt,
+             CASE WHEN im.media_group_id IS NULL THEN im.media_type
+               ELSE (
+                 SELECT group_concat(DISTINCT member.media_type)
+                 FROM media_group_members AS member
+                 WHERE member.chat_id = im.chat_id AND member.media_group_id = im.media_group_id
+               )
+             END AS mediaTypes
+      FROM indexed_messages AS im
+      WHERE im.plate = ? AND im.chat_id = ?
+      ORDER BY im.created_at DESC
     `).all(plate, chatId) as ReadonlyArray<SearchResult>,
   );
 

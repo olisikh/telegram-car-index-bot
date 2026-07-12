@@ -17,8 +17,8 @@ describe("indexPhotoMessage", () => {
     }));
 
     expect(saved).toEqual([
-      { plate: "AA1234BB", chatId: -1001234567890, messagePreview: "#car АА1234ВВ; також KA0001AX", messageUrl: "https://t.me/c/1234567890/42" },
-      { plate: "KA0001AX", chatId: -1001234567890, messagePreview: "#car АА1234ВВ; також KA0001AX", messageUrl: "https://t.me/c/1234567890/42" },
+      { plate: "AA1234BB", chatId: -1001234567890, messagePreview: "#car АА1234ВВ; також KA0001AX", mediaType: "photo", messageUrl: "https://t.me/c/1234567890/42" },
+      { plate: "KA0001AX", chatId: -1001234567890, messagePreview: "#car АА1234ВВ; також KA0001AX", mediaType: "photo", messageUrl: "https://t.me/c/1234567890/42" },
     ]);
   });
 });

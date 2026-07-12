@@ -8,7 +8,7 @@ import { SqliteIndexStore } from "./database.js";
 import { formatFindResult } from "./find-results.js";
 import { normalizePlate } from "./plates.js";
 import { runLongPolling } from "./polling.js";
-import { indexTaggedPhotoReply } from "./tagged-photo.js";
+import { indexTaggedMediaReply } from "./tagged-photo.js";
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) throw new Error("TELEGRAM_BOT_TOKEN is required");
@@ -48,7 +48,18 @@ bot.command("start", async (ctx) => {
 });
 
 bot.on(["message:photo", "message:video"], async (ctx) => {
-  if (!allowed(ctx.chat.id) || !ctx.message.caption) return;
+  if (!allowed(ctx.chat.id)) return;
+  const mediaType = "photo" in ctx.message ? "photo" : "video";
+  const mediaGroupId = ctx.message.media_group_id;
+  if (mediaGroupId) {
+    await Effect.runPromise(database.recordMediaGroupMember({
+      chatId: ctx.chat.id,
+      mediaGroupId,
+      messageId: ctx.message.message_id,
+      mediaType,
+    }));
+  }
+  if (!ctx.message.caption) return;
   const plate = carCommandPlate(ctx.message.caption);
   if (!plate) return;
 
@@ -57,7 +68,8 @@ bot.on(["message:photo", "message:video"], async (ctx) => {
     messageId: ctx.message.message_id,
     chatUsername: chatUsername(ctx.chat),
     text: ctx.message.caption,
-    hasMedia: true,
+    mediaType,
+    mediaGroupId,
   }));
   await ctx.reply(`✅ Збережено ${plate}`);
 });
@@ -65,12 +77,24 @@ bot.on(["message:photo", "message:video"], async (ctx) => {
 bot.on("message:text", async (ctx, next) => {
   if (allowed(ctx.chat.id)) {
     const repliedMessage = ctx.message.reply_to_message;
-    if (repliedMessage) {
-      await Effect.runPromise(indexTaggedPhotoReply(database, {
+    const mediaType = repliedMessage && ("photo" in repliedMessage ? "photo" : "video" in repliedMessage ? "video" : undefined);
+    if (repliedMessage && mediaType) {
+      const mediaGroupId = repliedMessage.media_group_id;
+      if (mediaGroupId) {
+        await Effect.runPromise(database.recordMediaGroupMember({
+          chatId: ctx.chat.id,
+          mediaGroupId,
+          messageId: repliedMessage.message_id,
+          mediaType,
+        }));
+      }
+      await Effect.runPromise(indexTaggedMediaReply(database, {
         chatId: ctx.chat.id,
-        photoMessageId: repliedMessage.message_id,
+        mediaMessageId: repliedMessage.message_id,
         chatUsername: chatUsername(ctx.chat),
         text: ctx.message.text,
+        mediaType,
+        mediaGroupId,
       }));
     }
   }
@@ -92,7 +116,6 @@ bot.command("car", async (ctx) => {
     messageId: message.message_id,
     chatUsername: chatUsername(ctx.chat),
     text: message.text,
-    hasMedia: false,
   }));
   await ctx.reply(`✅ Збережено ${plate}`);
 });

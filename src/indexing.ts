@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { messageLink } from "./message-link.js";
 import { carMessagePreview } from "./message-preview.js";
+import type { MediaType } from "./media-label.js";
 import { extractPlates } from "./plates.js";
 
 export interface IndexRecord {
@@ -8,6 +9,8 @@ export interface IndexRecord {
   readonly chatId: number;
   readonly messageUrl: string;
   readonly messagePreview: string;
+  readonly mediaType?: MediaType;
+  readonly mediaGroupId?: string;
 }
 
 export interface IndexStore {
@@ -27,6 +30,7 @@ export const indexPhotoMessage = (store: IndexStore, message: PhotoMessage): Eff
       plate,
       chatId: message.chatId,
       messagePreview: carMessagePreview(message.caption, true),
+      mediaType: "photo",
       messageUrl: messageLink({
         chatId: message.chatId,
         messageId: message.messageId,

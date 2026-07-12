@@ -49,6 +49,25 @@ describe("SqliteIndexStore", () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
+  it("aggregates photo and video members of an indexed album", async () => {
+    const store = new SqliteIndexStore(":memory:");
+    await Effect.runPromise(store.recordMediaGroupMember({
+      chatId: -100111, mediaGroupId: "album-1", messageId: 10, mediaType: "photo",
+    }));
+    await Effect.runPromise(store.recordMediaGroupMember({
+      chatId: -100111, mediaGroupId: "album-1", messageId: 11, mediaType: "video",
+    }));
+    await Effect.runPromise(store.save({
+      plate: "AA1234BB", chatId: -100111, messageUrl: "https://t.me/c/111/10",
+      messagePreview: "Мультимедіа", mediaType: "photo", mediaGroupId: "album-1",
+    }));
+
+    await expect(Effect.runPromise(store.find("AA1234BB", -100111))).resolves.toMatchObject([
+      { mediaTypes: "photo,video" },
+    ]);
+    store.close();
+  });
+
   it("creates the directory for a file-backed index", () => {
     const directory = mkdtempSync(join(tmpdir(), "car-index-"));
     const path = join(directory, "nested", "index.db");

@@ -12,11 +12,11 @@ describe("indexCarMessage", () => {
       chatId: -1001234567890,
       messageId: 73,
       text: "/car АА1234ВВ maintenance complete",
-      hasMedia: false,
+      mediaType: "photo",
     }));
 
     expect(saved).toEqual([
-      { plate: "AA1234BB", chatId: -1001234567890, messagePreview: "maintenance complete", messageUrl: "https://t.me/c/1234567890/73" },
+      { plate: "AA1234BB", chatId: -1001234567890, messagePreview: "maintenance complete", mediaType: "photo", messageUrl: "https://t.me/c/1234567890/73" },
     ]);
   });
 
@@ -28,7 +28,6 @@ describe("indexCarMessage", () => {
       chatId: -1001234567890,
       messageId: 74,
       text: "/car hello AA1234BB",
-      hasMedia: false,
     }));
 
     expect(saved).toEqual([]);
