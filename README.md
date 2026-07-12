@@ -4,10 +4,10 @@ Indexes Telegram **photo messages** whose captions contain Ukrainian vehicle reg
 
 ## Usage in the group
 
-Send the number in the **caption of the photo**:
+Send a hashtagged number in the **caption of the photo**:
 
 ```text
-#car AA1234BB
+#AA1234BB
 ```
 
 Search later:
@@ -39,7 +39,7 @@ npm run dev
 2. Add the bot to the target **supergroup**.
 3. In BotFather, disable **Group Privacy** (`/setprivacy` → Disable), so photo captions reach the bot.
 4. Get the numeric chat ID with a utility such as [@RawDataBot](https://t.me/RawDataBot), set `ALLOWED_CHAT_IDS`, then start the bot.
-5. Use photo captions in the agreed format and `/find AA1234BB`.
+5. Use photo captions in the agreed format (`#AA1234BB`) and `/find AA1234BB`.
 
 ## Operational notes
 

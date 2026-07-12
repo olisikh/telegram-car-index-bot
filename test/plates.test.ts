@@ -16,4 +16,8 @@ describe("extractPlates", () => {
     expect(extractPlates("готово: АА 1234 ВВ, повтор AA1234BB; ще KA 0001 AX"))
       .toEqual(["AA1234BB", "KA0001AX"]);
   });
+
+  it("recognizes a hashtagged plate without a #car prefix", () => {
+    expect(extractPlates("#АА1234ВВ")).toEqual(["AA1234BB"]);
+  });
 });
