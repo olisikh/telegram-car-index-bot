@@ -6,13 +6,21 @@ import { describe, expect, it } from "vitest";
 import { SqliteIndexStore } from "../src/database.js";
 
 describe("SqliteIndexStore", () => {
-  it("keeps every plate indexed from one photo", async () => {
+  it("returns a plate only from the requested chat", async () => {
     const store = new SqliteIndexStore(":memory:");
-    await Effect.runPromise(store.save({ plate: "AA1234BB", messageUrl: "https://t.me/c/1/42" }));
-    await Effect.runPromise(store.save({ plate: "KA0001AX", messageUrl: "https://t.me/c/1/42" }));
+    await Effect.runPromise(store.save({
+      plate: "AA1234BB", chatId: -100111, messageUrl: "https://t.me/c/111/42",
+    }));
+    await Effect.runPromise(store.save({
+      plate: "AA1234BB", chatId: -100222, messageUrl: "https://t.me/c/222/99",
+    }));
 
-    await expect(Effect.runPromise(store.find("AA1234BB"))).resolves.toHaveLength(1);
-    await expect(Effect.runPromise(store.find("KA0001AX"))).resolves.toHaveLength(1);
+    await expect(Effect.runPromise(store.find("AA1234BB", -100111))).resolves.toMatchObject([
+      { plate: "AA1234BB", chatId: -100111, messageUrl: "https://t.me/c/111/42" },
+    ]);
+    await expect(Effect.runPromise(store.find("AA1234BB", -100222))).resolves.toMatchObject([
+      { plate: "AA1234BB", chatId: -100222, messageUrl: "https://t.me/c/222/99" },
+    ]);
     store.close();
   });
 

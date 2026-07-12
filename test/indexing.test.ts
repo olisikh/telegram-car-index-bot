@@ -4,7 +4,7 @@ import { indexPhotoMessage, type IndexStore } from "../src/indexing.js";
 
 describe("indexPhotoMessage", () => {
   it("indexes every plate in a photo caption with a direct Telegram link", async () => {
-    const saved: Array<{ plate: string; messageUrl: string }> = [];
+    const saved: Array<{ plate: string; chatId: number; messageUrl: string }> = [];
     const store: IndexStore = {
       save: (record) => Effect.sync(() => { saved.push(record); }),
     };
@@ -17,8 +17,8 @@ describe("indexPhotoMessage", () => {
     }));
 
     expect(saved).toEqual([
-      { plate: "AA1234BB", messageUrl: "https://t.me/c/1234567890/42" },
-      { plate: "KA0001AX", messageUrl: "https://t.me/c/1234567890/42" },
+      { plate: "AA1234BB", chatId: -1001234567890, messageUrl: "https://t.me/c/1234567890/42" },
+      { plate: "KA0001AX", chatId: -1001234567890, messageUrl: "https://t.me/c/1234567890/42" },
     ]);
   });
 });

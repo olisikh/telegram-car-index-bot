@@ -4,6 +4,7 @@ import { extractPlates } from "./plates.js";
 
 export interface IndexRecord {
   readonly plate: string;
+  readonly chatId: number;
   readonly messageUrl: string;
 }
 
@@ -22,6 +23,7 @@ export const indexPhotoMessage = (store: IndexStore, message: PhotoMessage): Eff
   Effect.forEach(extractPlates(message.caption), (plate) =>
     store.save({
       plate,
+      chatId: message.chatId,
       messageUrl: messageLink({
         chatId: message.chatId,
         messageId: message.messageId,

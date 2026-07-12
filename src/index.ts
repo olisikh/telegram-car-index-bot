@@ -86,7 +86,7 @@ bot.command("find", async (ctx) => {
     return;
   }
 
-  const results = await Effect.runPromise(database.find(plate));
+  const results = await Effect.runPromise(database.find(plate, ctx.chat.id));
   if (results.length === 0) {
     await ctx.reply(`Для ${plate} нічого не знайдено.`);
     return;
