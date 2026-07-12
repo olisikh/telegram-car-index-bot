@@ -1,6 +1,6 @@
-import { extractPlates } from "./plates.js";
+import { normalizePlate } from "./plates.js";
 
-const CAR_COMMAND = /^\/car(?:@\w+)?(?:\s|$)/iu;
+const CAR_COMMAND = /^\/car(?:@\w+)?\s+(.+?)\s*$/iu;
 
-export const carCommandPlate = (caption: string): string | undefined =>
-  CAR_COMMAND.test(caption) ? extractPlates(caption)[0] : undefined;
+export const carCommandPlate = (text: string): string | undefined =>
+  normalizePlate(text.match(CAR_COMMAND)?.[1] ?? "");

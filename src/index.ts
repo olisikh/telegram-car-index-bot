@@ -3,8 +3,8 @@ import { Bot } from "grammy";
 import { Effect } from "effect";
 import { groupCommands } from "./commands.js";
 import { carCommandPlate } from "./car-command.js";
+import { indexCarMessage } from "./car-indexing.js";
 import { SqliteIndexStore } from "./database.js";
-import { indexPhotoMessage } from "./indexing.js";
 import { normalizePlate } from "./plates.js";
 import { runLongPolling } from "./polling.js";
 import { indexTaggedPhotoReply } from "./tagged-photo.js";
@@ -43,19 +43,21 @@ bot.use(async (ctx, next) => {
 
 bot.command("start", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  await ctx.reply("Готово. Для надійної індексації: фото з підписом /car AA1234BB.\nПошук: /find AA1234BB");
+  await ctx.reply("Готово. Надішли /car AA1234BB як повідомлення або підпис до фото.\nПошук: /find AA1234BB");
 });
 
 bot.on("message:photo", async (ctx) => {
   if (!allowed(ctx.chat.id) || !ctx.message.caption) return;
-  const commandPlate = carCommandPlate(ctx.message.caption);
-  await Effect.runPromise(indexPhotoMessage(database, {
+  const plate = carCommandPlate(ctx.message.caption);
+  if (!plate) return;
+
+  await Effect.runPromise(indexCarMessage(database, {
     chatId: ctx.chat.id,
     messageId: ctx.message.message_id,
     chatUsername: chatUsername(ctx.chat),
-    caption: ctx.message.caption,
+    text: ctx.message.caption,
   }));
-  if (commandPlate) await ctx.reply(`✅ Збережено ${commandPlate}`);
+  await ctx.reply(`✅ Збережено ${plate}`);
 });
 
 bot.on("message:text", async (ctx, next) => {
@@ -75,7 +77,21 @@ bot.on("message:text", async (ctx, next) => {
 
 bot.command("car", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  await ctx.reply("Надішли фото з підписом: /car AA1234BB");
+  const message = ctx.message;
+  if (!message?.text) return;
+  const plate = carCommandPlate(message.text);
+  if (!plate) {
+    await ctx.reply("Формат: /car AA1234BB");
+    return;
+  }
+
+  await Effect.runPromise(indexCarMessage(database, {
+    chatId: ctx.chat.id,
+    messageId: message.message_id,
+    chatUsername: chatUsername(ctx.chat),
+    text: message.text,
+  }));
+  await ctx.reply(`✅ Збережено ${plate}`);
 });
 
 bot.command("find", async (ctx) => {

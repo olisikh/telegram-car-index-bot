@@ -4,13 +4,13 @@ Indexes Telegram **photo messages** whose captions contain Ukrainian vehicle reg
 
 ## Usage in the group
 
-For reliable delivery in this group, send the photo with this **caption**:
+Send a `/car` command as a regular message or as a photo caption:
 
 ```text
 /car AA1234BB
 ```
 
-`/car` is a Telegram command, so it is delivered even in groups where ordinary photo updates are not reaching the bot. The bot replies `✅ Збережено AA1234BB` when it has indexed the photo.
+Every valid `/car <plate>` message is indexed, whether or not it contains a photo. The bot replies `✅ Збережено AA1234BB` when it has recorded the message.
 
 Search later:
 
