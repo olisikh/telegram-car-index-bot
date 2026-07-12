@@ -57,12 +57,12 @@ bot.on("message:photo", async (ctx) => {
 
 bot.on("message:text", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  const photo = ctx.message.reply_to_message;
-  if (!photo?.photo) return;
+  const repliedMessage = ctx.message.reply_to_message;
+  if (!repliedMessage) return;
 
   await Effect.runPromise(indexTaggedPhotoReply(database, {
     chatId: ctx.chat.id,
-    photoMessageId: photo.message_id,
+    photoMessageId: repliedMessage.message_id,
     chatUsername: chatUsername(ctx.chat),
     text: ctx.message.text,
   }));
