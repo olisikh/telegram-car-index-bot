@@ -7,4 +7,4 @@ const escapeHtml = (value: string): string => value
   .replace(/"/gu, "&quot;");
 
 export const formatFindResult = (result: SearchResult, index: number): string =>
-  `${index}. <a href="${escapeHtml(result.messageUrl)}">відкрити</a> — ${escapeHtml(result.messagePreview || "Мультимедіа")}`;
+  `${index}. <a href="${escapeHtml(result.messageUrl)}">лінк</a> — ${escapeHtml(result.messagePreview || "Мультимедіа")}`;

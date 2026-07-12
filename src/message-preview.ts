@@ -1,4 +1,4 @@
-export const MESSAGE_PREVIEW_MAX_LENGTH = 66;
+export const MESSAGE_PREVIEW_MAX_LENGTH = 70;
 
 const CAR_COMMAND_WITH_PLATE = /^\/car(?:@\w+)?\s+\S+\s*/iu;
 
