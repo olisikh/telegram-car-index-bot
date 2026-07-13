@@ -100,10 +100,10 @@ Telegram albums are separate photo messages with a shared `media_group_id`; ever
 | `plate` | Validated, normalized plate token |
 | `chat_id` | Telegram chat scope; mandatory for isolation |
 | `message_url` | Direct Telegram message link |
-| `message_preview` | `Фото` for new automatic records; older records retain their historical preview |
+| `message_preview` | Legacy compact metadata retained for existing records; it is not shown in current `/find` results |
 | `media_type` | `photo` for new automatic records |
 | `media_group_id` | Telegram album identifier, when applicable |
-| `created_at` | Database creation timestamp |
+| `created_at` | UTC database creation timestamp; `/find` renders it as `DD.MM.YYYY HH:MM` in `Europe/Kyiv` |
 
 Uniqueness is `(plate, chat_id, message_url)`: the same photo cannot create duplicate index rows for the same plate.
 

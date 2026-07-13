@@ -2,39 +2,38 @@ import { describe, expect, it } from "vitest";
 import { formatFindResult } from "../src/find-results.js";
 
 describe("formatFindResult", () => {
-  it("renders a compact safe label and clickable link within the 83-character visible-line budget", () => {
+  it("renders the Kyiv date and time instead of a generic photo label", () => {
     const formatted = formatFindResult({
       plate: "AA1234BB",
       chatId: -100123,
       messageUrl: "https://t.me/c/123/42",
-      messagePreview: "x".repeat(70),
-      createdAt: "2026-07-13 12:00:00",
-    }, 9999);
+      messagePreview: "Фото",
+      createdAt: "2026-07-13 11:25:00",
+    }, 1);
 
-    expect(formatted).toBe(`9999. <a href="https://t.me/c/123/42">лінк</a> — ${"x".repeat(70)}`);
-    expect(`9999. лінк — ${"x".repeat(70)}`).toHaveLength(83);
+    expect(formatted).toBe('1. <a href="https://t.me/c/123/42">лінк</a> — 13.07.2026 14:25');
   });
 
-  it("uses an exact media label when there is no note", () => {
+  it("does not show a stored media preview for old photo records", () => {
     const formatted = formatFindResult({
       plate: "AA1234BB",
       chatId: -100123,
       messageUrl: "https://t.me/c/123/42",
       messagePreview: "Мультимедіа",
       mediaTypes: "photo,video",
-      createdAt: "2026-07-13 12:00:00",
+      createdAt: "2025-12-31 22:05:00",
     }, 1);
 
-    expect(formatted).toContain("лінк</a> — Фото і Відео");
+    expect(formatted).toContain("лінк</a> — 01.01.2026 00:05");
   });
 
-  it("escapes preview text for Telegram HTML", () => {
+  it("escapes the source URL for Telegram HTML", () => {
     expect(formatFindResult({
       plate: "AA1234BB",
       chatId: -100123,
-      messageUrl: "https://t.me/c/123/42",
-      messagePreview: "oil & <filter>",
+      messageUrl: "https://t.me/c/123/42?one=1&two=2",
+      messagePreview: "Фото",
       createdAt: "2026-07-13 12:00:00",
-    }, 1)).toContain("oil &amp; &lt;filter&gt;");
+    }, 1)).toContain('href="https://t.me/c/123/42?one=1&amp;two=2"');
   });
 });

@@ -24,7 +24,7 @@ Browse distinct indexed cars, newest mention first:
 /list
 ```
 
-The `/list` widget shows ten plates per page. Tapping a plate runs the same chat-scoped search as `/find <plate>`.
+The `/list` widget shows ten plates per page. Tapping a plate runs the same chat-scoped search as `/find <plate>`. Each `/find` result links to the source photo and shows its date and time in the `Europe/Kyiv` time zone, for example `13.07.2026 14:25`.
 
 ## Recognition modes
 
