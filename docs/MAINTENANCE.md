@@ -42,10 +42,16 @@ Confirm `data/bot.out.log` records `photo=true` for every expected message. The 
 
 ### 2. Shadow-mode validation
 
-Keep this setting:
+Keep this setting while testing the database-write policy:
 
 ```dotenv
 PHOTO_RECOGNITION_MODE=shadow
+```
+
+For direct-message evaluation, also enable per-photo responses:
+
+```dotenv
+PHOTO_RECOGNITION_FEEDBACK=verbose
 ```
 
 Send representative real service photos: clear, angled, distant, dark, and album photos. The bot analyzes them but writes no new index rows. Review safe telemetry:

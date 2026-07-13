@@ -43,6 +43,17 @@ Recognition is conservative:
 
 Supported formats currently include Ukraine, Poland, Germany, Lithuania, Romania, Slovakia, Hungary, and Czechia. The same validation is used by `/find`.
 
+## Recognition feedback
+
+Configure `PHOTO_RECOGNITION_FEEDBACK` independently from indexing:
+
+| Value | Behavior |
+| --- | --- |
+| `silent` | The bot processes photos without replying. |
+| `verbose` | The bot replies after every photo: recognized plate(s), no readable plate, or a processing failure. |
+
+The production direct-message test configuration uses `verbose`. Keep it `silent` in busy groups if one reply per photo would create unwanted noise.
+
 ## Local Ollama setup
 
 The default local configuration is:

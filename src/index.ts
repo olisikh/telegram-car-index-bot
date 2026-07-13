@@ -8,6 +8,7 @@ import { formatFindResult } from "./find-results.js";
 import { OllamaVisionAnalyzer } from "./ollama-vision.js";
 import { normalizePlate } from "./plates.js";
 import { processPhotoRecognition, type RecognitionMode } from "./photo-recognition.js";
+import { recognitionFailureFeedback, recognitionFeedback } from "./recognition-feedback.js";
 import { runLongPolling } from "./polling.js";
 import { SerialQueue } from "./serial-queue.js";
 
@@ -28,6 +29,10 @@ if (recognitionModeValue !== "shadow" && recognitionModeValue !== "index") {
   throw new Error("PHOTO_RECOGNITION_MODE must be shadow or index");
 }
 const recognitionMode: RecognitionMode = recognitionModeValue;
+const recognitionFeedbackMode = process.env.PHOTO_RECOGNITION_FEEDBACK ?? "silent";
+if (recognitionFeedbackMode !== "silent" && recognitionFeedbackMode !== "verbose") {
+  throw new Error("PHOTO_RECOGNITION_FEEDBACK must be silent or verbose");
+}
 const ollamaModel = process.env.OLLAMA_MODEL ?? "gemma4:latest";
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
 const ollamaTimeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS ?? "60000");
@@ -128,11 +133,17 @@ bot.on("message:photo", async (ctx) => {
       chatUsername: chatUsername(ctx.chat),
       mediaGroupId: ctx.message.media_group_id,
     }));
+    if (recognitionFeedbackMode === "verbose") {
+      await ctx.reply(recognitionFeedback(plates));
+    }
     console.info(
       `photo recognition chat=${ctx.chat.id} message=${ctx.message.message_id}`
       + ` candidates=${plates.length} mode=${recognitionMode}`,
     );
   } catch (error) {
+    if (recognitionFeedbackMode === "verbose") {
+      await ctx.reply(recognitionFailureFeedback());
+    }
     console.error(
       `photo recognition failed chat=${ctx.chat.id} message=${ctx.message.message_id}`,
       error instanceof Error ? error.message : String(error),
@@ -192,5 +203,5 @@ bot.on("callback_query:data", async (ctx) => {
 });
 
 await bot.api.setMyCommands(groupCommands, { scope: { type: "all_group_chats" } });
-console.info(`Bot is running; photo recognition mode=${recognitionMode} model=${ollamaModel}`);
+console.info(`Bot is running; photo recognition mode=${recognitionMode} feedback=${recognitionFeedbackMode} model=${ollamaModel}`);
 await runLongPolling(bot);

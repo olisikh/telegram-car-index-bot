@@ -59,6 +59,17 @@ Photo bytes are passed from Telegram directly to Ollama in memory as base64 and 
 
 The default is `shadow`. Change to `index` only after representative live images have been evaluated.
 
+## Recognition feedback
+
+`PHOTO_RECOGNITION_FEEDBACK` controls replies independently of whether the bot writes index records:
+
+| Value | Reply behavior |
+| --- | --- |
+| `silent` | No recognition reply. |
+| `verbose` | Reply with recognized plate(s), a clear no-plate result, or an analysis-failure message. |
+
+Use `verbose` for direct-message/testing chats. Consider `silent` in high-volume groups to avoid a reply per image.
+
 ## Queue and reliability model
 
 A `SerialQueue` processes one recognition job at a time. This is intentional: the installed local vision model is approximately 9.6 GB and the host has 16 GB RAM. Incoming updates remain queued at Telegram while a recognition job runs. The long-poll loop awaits each `bot.handleUpdate`, so the bot does not request or process a later update until the active photo has completed or timed out.
