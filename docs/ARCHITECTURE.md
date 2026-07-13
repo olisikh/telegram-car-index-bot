@@ -61,7 +61,7 @@ The default is `shadow`. Change to `index` only after representative live images
 
 ## Queue and reliability model
 
-A `SerialQueue` processes one recognition job at a time. This is intentional: the installed local vision model is approximately 9.6 GB and the host has 16 GB RAM. Incoming Telegram handling remains responsive while jobs wait in the queue.
+A `SerialQueue` processes one recognition job at a time. This is intentional: the installed local vision model is approximately 9.6 GB and the host has 16 GB RAM. Incoming updates remain queued at Telegram while a recognition job runs. The long-poll loop awaits each `bot.handleUpdate`, so the bot does not request or process a later update until the active photo has completed or timed out.
 
 If Telegram download, Ollama inference, JSON parsing, or validation fails, that photo is not indexed. The bot logs only safe operational metadata such as chat/message identifiers, candidate count, mode, and error class/message—not caption text, image bytes, or model response body.
 

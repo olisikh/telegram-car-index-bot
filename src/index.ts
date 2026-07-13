@@ -110,13 +110,13 @@ bot.command("start", async (ctx) => {
   await ctx.reply("Готово. Надішли фото авто — бот спробує розпізнати ДНЗ.\nПошук: /find AA1234BB · Список: /list");
 });
 
-bot.on("message:photo", (ctx) => {
+bot.on("message:photo", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
   const largestPhoto = ctx.message.photo.at(-1);
   if (!largestPhoto) return;
 
-  void photoQueue.enqueue(async () => {
-    const plates = await processPhotoRecognition({
+  try {
+    const plates = await photoQueue.enqueue(async () => processPhotoRecognition({
       store: database,
       download: downloadPhoto,
       analyze: visionAnalyzer.analyze,
@@ -127,17 +127,17 @@ bot.on("message:photo", (ctx) => {
       fileId: largestPhoto.file_id,
       chatUsername: chatUsername(ctx.chat),
       mediaGroupId: ctx.message.media_group_id,
-    });
+    }));
     console.info(
       `photo recognition chat=${ctx.chat.id} message=${ctx.message.message_id}`
       + ` candidates=${plates.length} mode=${recognitionMode}`,
     );
-  }).catch((error: unknown) => {
+  } catch (error) {
     console.error(
       `photo recognition failed chat=${ctx.chat.id} message=${ctx.message.message_id}`,
       error instanceof Error ? error.message : String(error),
     );
-  });
+  }
 });
 
 bot.command("list", async (ctx) => {

@@ -62,7 +62,7 @@ For any behavior change:
 - The bot uses a custom `getUpdates` loop; it must be the **only** active poller for the token.
 - Every interaction type must be listed in `allowedUpdates`. Inline-keyboard buttons require `callback_query`; omitting it makes `/list` appear correct while its buttons do nothing.
 - Only `message:photo` is an indexing input. Captions and text are intentionally ignored. Process the largest `PhotoSize` for each update; Telegram albums arrive as separate messages sharing `media_group_id`.
-- Recognition runs through one serial queue because the local 8B vision model shares a 16 GB Mac. Never make photo analysis concurrent without measured memory/latency evidence.
+- Recognition runs through one serial queue and the long-poll loop awaits each photo handler. It will not fetch/process a later update until the active image finishes or times out; do not introduce concurrent inference without measured memory/latency evidence.
 - `PHOTO_RECOGNITION_MODE=shadow` must never write model results. Move to `index` only after representative live-photo validation.
 - Bot privacy mode and Telegram update delivery can be inconsistent for ordinary media. Verify photo delivery in the target group before diagnosing model accuracy.
 
