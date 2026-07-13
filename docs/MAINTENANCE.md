@@ -1,248 +1,121 @@
 # Maintenance Runbook
 
-## Local setup
+For first installation use [BEGINNER-SETUP.md](BEGINNER-SETUP.md). This document covers ongoing maintenance.
 
-> For a new non-technical installation on macOS, Windows, or Linux, start with [BEGINNER-SETUP.md](BEGINNER-SETUP.md). This runbook is for ongoing technical maintenance after installation.
+## Required local stack
 
-```bash
-cp .env.example .env
-# Set TELEGRAM_BOT_TOKEN and one or more comma-separated ALLOWED_CHAT_IDS.
-# Keep PHOTO_RECOGNITION_MODE=shadow while validating local recognition.
-npm install
-npm test
-npm run typecheck
-npm run lint
-npm run dev
+The bot has one recognition path and does **not** require Ollama:
+
+```text
+Telegram photo -> local YOLO detector -> FastPlateOCR -> SQLite index
 ```
 
-`ALLOWED_CHAT_IDS` is mandatory in every environment. The default Ollama endpoint is local:
+Required repository-local artifacts:
 
-```dotenv
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=qwen2.5vl:7b
-OLLAMA_TIMEOUT_MS=60000
-PHOTO_RECOGNITION_STRATEGY=detector-crop
-# Used only when PHOTO_RECOGNITION_STRATEGY=detector-fast-ocr
-FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
-```
-
-This is the supported production path: local YOLO detector → enlarged in-memory plate crop → local Qwen reader. `full-image` is retained only as a diagnostic fallback; do not select it for a new deployment.
-
-Verify the configured model is local and vision-capable:
-
-```bash
-ollama show "$OLLAMA_MODEL"
-curl --silent --show-error http://127.0.0.1:11434/api/tags
-```
-
-### Detector-crop prerequisites
-
-When either `PHOTO_RECOGNITION_STRATEGY=detector-crop` or `detector-fast-ocr`, these repository-local artifacts must exist before the LaunchAgent starts:
-
-```bash
+```text
 ./.vision-venv/bin/python
-./scripts/detect_plate_crops.py
+./scripts/detect_and_read_plates.py
 ./models/license-plate-detector.pt
 ```
 
-The application validates these three paths at startup whenever either detector strategy is selected. Recreate them using the commands in [README.md](../README.md#detector-crop-local-dependencies). Keep the Python environment and model out of Git; they are intentionally ignored.
-
-### FastPlateOCR Flow 3 prerequisite
-
-For `detector-fast-ocr`, install the local ONNX reader in the same Python environment:
+Install or recreate them:
 
 ```bash
-.vision-venv/bin/python -m pip install 'fast-plate-ocr[onnx]'
+python3 -m venv .vision-venv
+.vision-venv/bin/python -m pip install --upgrade pip
+.vision-venv/bin/python -m pip install ultralytics huggingface_hub 'fast-plate-ocr[onnx]'
+mkdir -p models
+.vision-venv/bin/hf download yasirfaizahmed/license-plate-object-detection best.pt --local-dir models
+mv models/best.pt models/license-plate-detector.pt
 ```
 
-The first reader invocation downloads an approximately 5 MB model. Test this strategy only with `PHOTO_RECOGNITION_MODE=shadow`; FastPlateOCR's optional region output is not used for Ukrainian/EU acceptance. The reader has the same `OLLAMA_TIMEOUT_MS` process deadline as the Ollama reader. It cannot write a record until both `PHOTO_RECOGNITION_MODE=index` and `FAST_PLATE_OCR_ALLOW_INDEX=true` are explicitly set after a benchmark is accepted.
+FastPlateOCR downloads its small ONNX reader on first use. It reads the local YOLO crops and never receives a cloud request.
 
-## Recognition rollout procedure
-
-### 1. Verify Telegram photo delivery
-
-With Group Privacy disabled and the bot in the intended allowed **supergroup**, send:
-
-- a plain single photo;
-- a photo with a caption (the photo is analyzed; its caption is ignored);
-- a multi-photo Telegram album.
-
-If Group Privacy was disabled after the bot joined, remove and re-add the bot before testing. Confirm `data/bot.out.log` records `photo=true` for every expected message. Ordinary text is deliberately ignored.
-
-### 2. Shadow-mode validation
-
-Keep this setting while testing the database-write policy:
+## Configuration
 
 ```dotenv
 PHOTO_RECOGNITION_MODE=shadow
+PHOTO_RECOGNITION_TIMEOUT_MS=60000
+FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
+PLATE_DETECTOR_PYTHON=./.vision-venv/bin/python
+PLATE_DETECTOR_SCRIPT=./scripts/detect_and_read_plates.py
+PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 ```
 
-For direct-message evaluation, enable per-photo responses in that chat:
+`ALLOWED_CHAT_IDS` and `TELEGRAM_BOT_TOKEN` are mandatory. Use `shadow` to verify real photos without writes. After representative testing, set `PHOTO_RECOGNITION_MODE=index` and restart the agent.
 
-```text
-/verbose on
-```
-
-Send representative real service photos: clear, angled, distant, dark, and album photos. The bot analyzes them but writes no new index rows. Review safe telemetry:
+## Verification before deployment
 
 ```bash
-tail -f ~/telegram-car-index-bot/data/bot.out.log
+npm ci
+npm test
+npm run typecheck
+npm run lint
 ```
 
-Expected completion line:
+Send clear, angled, distant, dark, and multi-car photos in `shadow` mode. Use `/verbose on` in a private test chat to see source link, candidate result, and detector/crop/OCR timings. Validate exact plate text manually before enabling `index`.
 
-```text
-photo recognition chat=<id> message=<id> candidates=<n> mode=shadow detectionMs=<n> croppingMs=<n> ocrMs=<n>
-```
+## macOS LaunchAgent
 
-With `/verbose on`, the direct reply shows the same stage split: `🕵️‍♂️ Пошук` (detector), `✂️ Обрізання` (crop preparation), and `👁️ OCR` (reader). Compare candidates against the original images in Telegram. Do not treat a successful model response as proven accuracy—measure exact plate reads on representative images.
-
-### 3. Enable automatic indexing
-
-Only after review, change:
-
-```dotenv
-PHOTO_RECOGNITION_MODE=index
-```
-
-Then restart the agent. New valid candidates will be indexed; historical records remain unchanged.
-
-## Routine change procedure
-
-1. Work on a focused branch or clean working tree.
-2. Add/update tests before changing behavior.
-3. Run:
-
-   ```bash
-   npm test
-   npm run typecheck
-   npm run lint
-   ```
-
-4. Update `README.md`, `AGENTS.md`, and docs when behavior/operations change.
-5. Commit and push source, tests, and documentation only—not `.env`, `data/`, logs, or test photos.
-6. Deploy and verify the LaunchAgent.
-
-## Production process: macOS LaunchAgent
-
-Production uses this user LaunchAgent:
-
-```text
-com.olisikh.bandera-car-index-bot
-```
-
-Its plist is installed at:
+Production uses `com.olisikh.bandera-car-index-bot` at:
 
 ```text
 ~/Library/LaunchAgents/com.olisikh.bandera-car-index-bot.plist
 ```
 
-The agent starts `npm start` from the repository. It writes logs under `data/`:
+It writes operational logs to `data/bot.out.log` and `data/bot.err.log`.
 
-```text
-data/bot.out.log
-data/bot.err.log
-```
+### Deploy an update
 
-### Check status
-
-```bash
-launchctl print gui/$(id -u)/com.olisikh.bandera-car-index-bot
-```
-
-A healthy process reports `state = running` and a current PID.
-
-### Apply a code/configuration change
-
-Do **not** run `npm start` manually while the agent is running; that creates a second long-polling client and Telegram returns `409 Conflict`.
+Do not run `npm start` manually while the LaunchAgent is running: two pollers cause Telegram `409 Conflict`.
 
 ```bash
 cd ~/telegram-car-index-bot
-git pull
+git pull --ff-only
+npm ci
 npm test && npm run typecheck && npm run lint
 launchctl kickstart -k gui/$(id -u)/com.olisikh.bandera-car-index-bot
 launchctl print gui/$(id -u)/com.olisikh.bandera-car-index-bot
 ```
 
-### Read logs
+A healthy service reports `state = running` and a current PID. The startup log names `pipeline=detector-fast-ocr`.
+
+### Logs
 
 ```bash
 tail -f ~/telegram-car-index-bot/data/bot.out.log
 tail -f ~/telegram-car-index-bot/data/bot.err.log
 ```
 
-Logs must not contain captions, downloaded image data, full model responses, or bot tokens.
+Logs must not contain image bytes, captions, full model output, or tokens.
 
-## Telegram configuration checklist
+## Telegram checklist
 
-1. Bot token is valid and present only in `.env`.
-2. Bot belongs to the intended supergroup.
-3. Group Privacy is disabled in BotFather if ordinary photo updates must reach the bot.
-4. The group ID is in `ALLOWED_CHAT_IDS`.
-5. The command menu contains `/find`, `/list`, and `/verbose`; no manual indexing command is registered.
-6. `src/polling.ts` requests both `message` and `callback_query` updates.
-7. Ollama is reachable at the configured `OLLAMA_BASE_URL` before enabling `index` mode for an Ollama strategy.
-8. If a detector strategy is selected, the local detector Python/script/model files pass the startup check.
-9. For `detector-fast-ocr`, FastPlateOCR is installed in that Python environment and the strategy remains in `shadow` mode until its benchmark is accepted.
+1. Bot belongs to the intended supergroup.
+2. Group Privacy is disabled so normal photo updates arrive.
+3. Group ID is in `ALLOWED_CHAT_IDS`.
+4. Command menu contains `/find`, `/list`, `/verbose`.
+5. Detector Python, script, and model pass the startup existence check.
+6. FastPlateOCR is installed in that Python environment.
 
-## Database backup and recovery
+## Database backup and restore
 
-The durable index is `data/index.db`. SQLite uses WAL mode, so copy it with SQLite's backup command rather than a naive file copy while the bot runs.
-
-### Backup
+The durable index is `data/index.db`; use SQLite backup while the bot runs:
 
 ```bash
-cd ~/telegram-car-index-bot
 mkdir -p backups
 sqlite3 data/index.db ".backup 'backups/index-$(date +%Y%m%d-%H%M%S).db'"
 ```
 
-Protect backups exactly like the primary database: they contain plates and Telegram message links. Keep them outside version control and encrypt them at rest if moved off the host.
+Protect backups like the primary database: they contain plate numbers and Telegram links. To restore, stop the agent, retain a copy of the current database, replace `data/index.db`, remove stale `index.db-wal`/`index.db-shm`, then bootstrap or kickstart the LaunchAgent.
 
-### Restore
+## Common incidents
 
-1. Stop the agent:
-
-   ```bash
-   launchctl bootout gui/$(id -u)/com.olisikh.bandera-car-index-bot
-   ```
-
-2. Keep a copy of the current database, then replace `data/index.db` with the chosen backup.
-3. Remove stale `data/index.db-wal` and `data/index.db-shm` files if present.
-4. Bootstrap the agent again:
-
-   ```bash
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.olisikh.bandera-car-index-bot.plist
-   ```
-
-5. Confirm it is running and test `/find` in the intended group.
-
-## Incident response
-
-### `409 Conflict: terminated by other getUpdates request`
-
-Another poller is using the same token. Stop manual `npm start` processes and ensure only the LaunchAgent remains. If the owner cannot identify the other client, revoke/regenerate the token in BotFather, update `.env`, and restart the agent.
-
-### `/list` renders but buttons do nothing
-
-Confirm the loop requests `callback_query` as well as `message` updates. This is a polling configuration issue, not a keyboard-layout issue.
-
-### Photo was not analyzed
-
-Check that the message is a Telegram `photo`, the group is allow-listed, and Group Privacy is disabled. Confirm Ollama is running, then inspect `bot.err.log` for Telegram download, timeout, or Ollama HTTP failures.
-
-### Candidate is wrong or a clear plate was missed
-
-Leave the bot in `shadow` mode. Capture the message link and expected plate in a private evaluation note, but do not commit source photos or plate datasets to this repository. Compare multiple representative cases before changing prompt, model, or validation policy.
-
-### Bot ignores everything
-
-Check the agent status and both logs. Then check `ALLOWED_CHAT_IDS`, Group Privacy configuration, Ollama reachability, and whether a bot-token conflict appears in the error log.
+- **409 Conflict** — stop manual bot processes; only the LaunchAgent may poll with this token. Revoke the token if an unknown poller persists.
+- **Photo not analyzed** — verify it was sent as a Telegram photo, the chat is allow-listed, Group Privacy is disabled, and inspect `bot.err.log`.
+- **Bad or missed candidate** — return to `shadow`, collect representative source links privately, and benchmark before changing the detector/model/validator.
+- **Buttons do nothing** — ensure the poller requests `callback_query` updates.
 
 ## Security hygiene
 
-- Never paste a full production token into an issue, commit, or documentation.
-- Rotate tokens immediately after accidental exposure.
-- Do not point `OLLAMA_BASE_URL` at a remote/cloud service without explicit approval: it transfers incoming Telegram images outside this Mac.
-- Back up the database securely; never upload it to public issue trackers.
-- Keep access to the Telegram group and the host account limited to authorized staff.
+Never commit `.env`, tokens, databases, logs, photos, or Telegram exports. Keep host and group access restricted. The bot has no remote OCR endpoint; do not add one without explicit approval.

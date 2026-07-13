@@ -2,124 +2,64 @@
 
 ## Purpose and boundaries
 
-The bot maintains a private, chat-scoped vehicle-plate index for allow-listed Telegram **supergroups**. It analyzes incoming photo messages through the production local recognition path: YOLO detection followed by cropped-plate reading with local Qwen. Flow 3 adds an optional local FastPlateOCR reader after the same detector/crop step for lightweight cross-platform evaluation. The legacy full-image Ollama strategy remains only for controlled diagnostic comparison or rollback. A plate is saved only after the active reader returns a strict candidate and the TypeScript application normalizes and validates it.
+The bot keeps a private, chat-scoped vehicle-plate index for allow-listed Telegram supergroups. Its single local recognition path is **YOLO detection → enlarged in-memory crop → FastPlateOCR**. The worker returns untrusted candidate strings; TypeScript normalizes and validates them before any SQLite write.
 
-The bot is not a general message archive, OCR crawler, or public vehicle-tracking service.
+It is not a message archive, public tracking service, or cloud OCR client.
 
 ## Runtime flow
 
 ```text
 Telegram photo update
-  -> explicit getUpdates loop (`src/polling.ts`)
-  -> allow-listed `message:photo` handler (`src/index.ts`)
-  -> largest Telegram PhotoSize downloaded into memory
-  -> one-at-a-time queue (`src/serial-queue.ts`)
-  -> recognition strategy (`detector-crop`: local detector → in-memory crop(s) → Qwen; `detector-fast-ocr`: local detector → in-memory crop(s) → FastPlateOCR; `full-image`: diagnostic fallback)
-  -> JSON parse, plate normalization, and format validation
-  -> shadow observation OR SQLite index (`src/photo-recognition.ts`)
-  -> `/find` and `/list` retrieve links from SQLite
+  -> explicit getUpdates loop
+  -> allow-listed message:photo handler
+  -> largest Telegram PhotoSize in memory
+  -> one-at-a-time SerialQueue
+  -> local Python worker: YOLO detector -> RGB crop(s) -> FastPlateOCR
+  -> strict JSON parse, normalization, format validation
+  -> shadow observation OR SQLite index
+  -> chat-scoped /find and /list
 ```
 
-The custom poller requests both `message` and `callback_query` updates. Callback queries are required for `/list` plate buttons and pagination.
+The Python worker receives source image bytes over stdin and returns JSON over stdout. It creates no temporary photo or crop files. It detects up to five plate regions per photo.
 
 ## Commands
 
 | Command | Purpose | Scope |
 | --- | --- | --- |
-| `/find <plate>` | Return source-photo messages immediately for one plate, or show a paginated picker when a 3+ character fragment matches several plates. | Current chat only |
-| `/list` | Show unique plates, newest mention first, ten per page. | Current chat only |
-| `/verbose on` / `/verbose off` | Enable or disable per-photo recognition feedback in the current chat. | Current chat only |
-| `/start` | Show brief automatic-photo-indexing guidance. | Current allowed chat |
+| `/find <plate>` | Show source-photo messages for one plate, or a paginated plate picker for a 3+ character fragment matching several plates. | Current chat only |
+| `/list` | Show unique plates, newest first, ten per page. | Current chat only |
+| `/verbose on` / `/verbose off` | Toggle per-photo recognition feedback. | Current chat only |
+| `/start` | Show brief guidance. | Current allowed chat |
 
-The command menu contains `/find`, `/list`, and `/verbose`; no manual indexing command is registered.
+Only native Telegram photo updates are analyzed; captions, text, videos, animations, and documents are ignored.
 
-The bot has no manual plate-tagging command. Only native Telegram `message:photo` updates are indexing inputs; photo captions are ignored, and text, videos, animations, and documents are not processed.
+## Configuration
 
-## Recognition strategies
-
-| Strategy | Flow | Notes |
-| --- | --- | --- |
-| `full-image` | Original photo → local Ollama | Legacy diagnostic fallback; not selected for a new deployment. |
-| `detector-crop` | Original photo → `scripts/detect_plate_crops.py` → up to five enlarged JPEG crops → local `qwen2.5vl:7b` | Supported production path for smaller/distant plates. |
-| `detector-fast-ocr` | Original photo → `scripts/detect_plate_crops.py` → up to five enlarged crops → FastPlateOCR CCT-S v2 ONNX reader | Flow 3 lightweight candidate; keep in shadow mode until a representative benchmark passes. |
-
-Both detector strategies invoke the local YOLO detector through stdin/stdout. `detector-crop` returns in-memory JPEG crops to the TypeScript Ollama adapter; `detector-fast-ocr` reads those crops inside the same Python invocation and returns candidate strings. Source photos and generated crops exist only in memory; no temporary media files are created. The detector script/model/Python environment are validated at startup whenever either detector strategy is selected.
-
-## Ollama recognition contract
-
-`OllamaVisionAnalyzer` sends one photo and requires JSON shaped as:
-
-```json
-{"plates":["AA1234BB"]}
+```dotenv
+PHOTO_RECOGNITION_MODE=shadow
+PHOTO_RECOGNITION_TIMEOUT_MS=60000
+FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
+PLATE_DETECTOR_PYTHON=./.vision-venv/bin/python
+PLATE_DETECTOR_SCRIPT=./scripts/detect_and_read_plates.py
+PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 ```
 
-The response is untrusted. The bot accepts a candidate only after it:
+`shadow` performs no database writes. `index` stores only normalized, validated plates and source-message metadata. The detector Python executable, script, and detector model are mandatory at startup.
 
-1. is a string in the `plates` array;
-2. has visual whitespace/hyphens removed;
-3. has Ukrainian/Latin lookalikes normalized;
-4. matches a supported plate format, including four-digit Ukrainian National Police blue plates;
-5. is deduplicated within that photo.
+## Validation and feedback
 
-When the general pass finds no plate, the local analyzer performs one additional, time-bounded pass specifically for visibly confirmed Ukrainian National Police markings/blue plates. Both passes share the configured overall timeout.
+Candidates must be JSON strings, normalize to a supported plate format, and are deduplicated within a photo. The validator supports Ukraine (including four-digit National Police plates) plus the configured EU civilian formats.
 
-Photo bytes are passed from Telegram directly to Ollama in memory as base64 and are not written to disk. The default `OLLAMA_BASE_URL` is `127.0.0.1`; using a remote endpoint changes the privacy model because it transfers source images externally.
+Verbose feedback is per-chat and off by default. It reports safe outcome categories plus detector, crop, and OCR stage durations; it never exposes raw model output, captions, or image bytes.
 
-## Recognition modes
+## Data and privacy
 
-| Mode | SQLite writes | Purpose |
-| --- | --- | --- |
-| `shadow` | None | Measure live recognition quality without polluting the index. |
-| `index` | Validated recognized plates only | Production automatic indexing. |
+`indexed_messages` stores the normalized plate, chat ID, message URL, limited media metadata, and creation time. SQLite search uses a trigram FTS index over plate values only. No downloaded media or full caption/message body is stored.
 
-The default new-install configuration is `shadow` mode with the detector-crop/Qwen path. Change to `index` only after representative live images have been evaluated.
+Every query and write is scoped by `chat_id`. Source links require a supergroup and are usable only by members who can access the source group.
 
-## Recognition feedback
+## Reliability
 
-Verbose status is stored per chat in `chat_recognition_settings` and defaults to off. An allowed-chat user controls it in the target chat:
+A serial queue plus awaited long polling applies backpressure: the bot does not request another update until the active image succeeds, times out, or fails. The custom poller requests both `message` and `callback_query` updates for photo processing and inline keyboards.
 
-```text
-/verbose on
-/verbose off
-```
-
-When enabled, each completion reply contains a direct source-photo link, recognized plate(s) where available, the outcome (no plate, timeout, or crash), and elapsed time. Detector strategies additionally show `🕵️‍♂️ Пошук` (detection), `✂️ Обрізання` (crop preparation), and `👁️ OCR` (reader) stage durations. It intentionally does not disclose raw model output or internal exception data.
-
-## Queue and reliability model
-
-A `SerialQueue` processes one recognition job at a time. This is intentional: the installed local vision models and detector run on a host with 16 GB RAM. Incoming updates remain queued at Telegram while a recognition job runs. The long-poll loop awaits each `bot.handleUpdate`, so the bot does not request or process a later update until the active photo has completed or timed out.
-
-If Telegram download, Ollama inference, JSON parsing, or validation fails, that photo is not indexed. The bot logs only safe operational metadata such as chat/message identifiers, candidate count, mode, and error class/message—not caption text, image bytes, or model response body.
-
-Telegram albums are separate photo messages with a shared `media_group_id`; every image is processed independently and receives its own Telegram message URL.
-
-## Data model
-
-### `indexed_messages`
-
-| Field | Meaning |
-| --- | --- |
-| `plate` | Validated, normalized plate token |
-| `chat_id` | Telegram chat scope; mandatory for isolation |
-| `message_url` | Direct Telegram message link |
-| `message_preview` | Legacy compact metadata retained for existing records; it is not shown in current `/find` results |
-| `media_type` | `photo` for new automatic records |
-| `media_group_id` | Telegram album identifier, when applicable |
-| `created_at` | UTC database creation timestamp; `/find` renders it as `DD.MM.YYYY HH:MM` in `Europe/Kyiv` |
-
-Uniqueness is `(plate, chat_id, message_url)`: the same photo cannot create duplicate index rows for the same plate.
-
-### `media_group_members`
-
-This table remains for legacy media records. New automatic photo recognition does not depend on mixed-media album inference.
-
-## Privacy and access model
-
-- `ALLOWED_CHAT_IDS` is required at startup and checked in every data-bearing handler.
-- Source-message links require a supergroup; a legacy/basic group must be migrated and its replacement `-100…` ID added to the allow-list.
-- Reads and writes are scoped to the originating `chat_id`.
-- The database contains no downloaded Telegram media and no full message/caption bodies.
-- Message URLs are useful only to Telegram users who already have source-group access.
-- Do not configure a cloud endpoint without explicit approval from the data owner and people whose images are processed.
-
-See [MAINTENANCE.md](MAINTENANCE.md) for deployment, shadow-mode validation, backup, and incident procedures.
+See [MAINTENANCE.md](MAINTENANCE.md) for deployment and recovery.

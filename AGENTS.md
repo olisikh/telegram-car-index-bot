@@ -2,95 +2,61 @@
 
 ## Mission
 
-This is a privacy-conscious Telegram bot for an auto-service workflow. It analyzes allow-listed Telegram **photo messages** with local Ollama vision, indexes only strictly validated vehicle plates, then links people back to the original Telegram message. It is not a general-purpose surveillance system.
+A privacy-conscious Telegram bot for auto-service workflows. It processes allow-listed Telegram **photo messages** through one local pipeline: **YOLO plate detector → in-memory crop → FastPlateOCR**. It indexes only strictly validated plates and links users back to the source message.
 
-The bot stores only normalized plate data, source-chat scope, Telegram message URL, a compact preview, timestamps, and minimal media metadata. It does **not** persist photos/videos. New photo bytes are held only in memory during local Ollama analysis and are then discarded.
+It stores normalized plate data, source-chat scope, message URL, timestamps, and limited media metadata. It never persists source photos, crops, full captions, or general chat text.
 
 ## Repository map
 
-- `src/ollama-vision.ts` — strict local Ollama reader and plate-output validation.
-- `src/plate-detector.ts` / `scripts/detect_plate_crops.py` — local YOLO detection and in-memory crop transport.
-- `src/detector-crop-analyzer.ts` / `src/recognition-strategy.ts` — recognition strategy composition. `detector-crop` is production; `full-image` is retained only for diagnostic comparison/rollback.
-- `src/fast-plate-ocr-analyzer.ts` — optional Flow 3 local detector + FastPlateOCR adapter; keep it in shadow mode until it passes a representative benchmark.
-- `src/photo-recognition.ts` — temporary in-memory photo processing and shadow/index policy.
-- `src/serial-queue.ts` — single-worker recognition queue that protects the host from concurrent vision jobs.
-- `src/index.ts` — composition root: Telegram handlers, command registration, authorization, and response rendering.
-- `src/database.ts` — SQLite schema, additive migrations, and queries.
-- `src/plates.ts` — plate normalization and validation, including Ukrainian civilian all-Latin series and four-digit National Police special plates. Supported formats are deliberate product policy.
-- `src/indexing.ts` — automatic recognized-photo indexing and record shape.
-- `src/car-list.ts` — `/list` pagination and callback-data helpers.
-- `src/polling.ts` — the single explicit long-poll loop.
-- `test/` — Vitest unit and migration tests; maintain a corresponding test for each behavior change.
-- `docs/` — architecture and operational runbook.
+- `src/index.ts` — Telegram composition root, allow-list, commands, and queue.
+- `scripts/detect_and_read_plates.py` — the single in-memory YOLO + FastPlateOCR worker.
+- `src/fast-plate-ocr-analyzer.ts` — bounded Python-worker adapter.
+- `src/plate-analyzer.ts` / `src/recognized-plates.ts` — analyzer contract and strict candidate parsing.
+- `src/photo-recognition.ts` — in-memory processing and `shadow`/`index` policy.
+- `src/plates.ts` — normalization and supported-country validation.
+- `src/database.ts` — SQLite schema, FTS plate search, and chat-scoped queries.
+- `src/car-list.ts`, `src/find-query.ts`, `src/find-results.ts` — search/list interaction helpers.
+- `test/` — Vitest unit and migration tests.
 
-## Non-negotiable product and privacy rules
+## Non-negotiable rules
 
-1. **Keep records chat-scoped.** Every read and write must preserve `chat_id`; never make `/find` or `/list` search across groups.
-2. **Allow-list first.** All handlers and callbacks that read or write data must verify `ALLOWED_CHAT_IDS`.
-3. **Do not persist media bytes or full captions.** Photo bytes may exist only in memory for the duration of a local Ollama request. Keep only the existing compact preview policy. Do not add image hosting, user profiles, broad message logging, or cloud image transfer without explicit approval.
-4. **Keep secrets local.** Never commit `.env`, bot tokens, SQLite data, logs, or Telegram exports. Revoke a token immediately if it appears in a commit, log, or chat.
-5. **Treat recognized plates as untrusted model output.** Normalize and validate every candidate before indexing. Do not loosen formats casually, make unsupported country formats look valid, or index a model explanation/guess.
-6. **Keep the production recognition path explicit.** The supported default is local YOLO detector-crop → local `qwen2.5vl:7b`. `detector-fast-ocr` is an additive Flow 3 experiment: it keeps the detector but replaces the Qwen reader with local FastPlateOCR. Any model swap or crop-quality trade-off requires shadow-mode testing on representative real photos before it can index production records.
-7. **Require supergroups for source links.** Clickable Telegram message URLs require a supergroup (`-100…` chat ID). A legacy/basic group must be migrated and its new ID added to `ALLOWED_CHAT_IDS` before indexing is enabled.
+1. Every data-bearing operation must retain and filter by `chat_id`.
+2. Check `ALLOWED_CHAT_IDS` in every handler and callback.
+3. Do not persist media bytes, captions, Telegram exports, or raw reader output.
+4. Keep `.env`, SQLite data, logs, and tokens out of Git.
+5. Treat FastPlateOCR output as untrusted; normalize and validate every candidate before indexing.
+6. The only recognition path is local YOLO → FastPlateOCR. Do not add strategy switches, Ollama readers, cloud OCR, or fallback paths without explicit user direction.
+7. The recognition worker runs serially and Telegram polling waits for it. Do not introduce parallel inference without a measured resource plan.
+8. Supergroups are required for durable clickable source links.
 
-## Development workflow
+## Configuration
 
-Use TypeScript in strict mode and ESM imports with the `.js` suffix. The project intentionally uses `effect` for persistence effects; retain that boundary instead of adding ad-hoc async database access.
+The bot requires these local files at startup:
 
-For any behavior change:
-
-1. Add or update a focused test first.
-2. Implement the smallest change that makes it pass.
-3. Run the full verification suite:
-
-   ```bash
-   npm test
-   npm run typecheck
-   npm run lint
-   ```
-
-4. Update `README.md` for user-visible behavior and `docs/` for operational/design changes.
-5. Commit a focused change. Do not combine unrelated refactors, generated files, or data files.
-
-## SQLite changes
-
-`SqliteIndexStore` opens existing production databases, so schema changes must be backward compatible:
-
-- Prefer additive nullable columns, new tables, and `CREATE INDEX IF NOT EXISTS`.
-- Detect legacy columns using `PRAGMA table_info` before `ALTER TABLE`.
-- Make migrations idempotent and test them with an old schema fixture.
-- Do not drop/rebuild production tables or mutate historical data without an approved backup and migration plan.
-- Keep the uniqueness rule `(plate, chat_id, message_url)` unless requirements explicitly change.
-
-## Telegram-specific traps
-
-- The bot uses a custom `getUpdates` loop; it must be the **only** active poller for the token.
-- Every interaction type must be listed in `allowedUpdates`. Inline-keyboard buttons require `callback_query`; omitting it makes `/list` appear correct while its buttons do nothing.
-- Only `message:photo` is an indexing input. Captions and text are intentionally ignored. Process the largest `PhotoSize` for each update; Telegram albums arrive as separate messages sharing `media_group_id`.
-- Recognition runs through one serial queue and the long-poll loop awaits each photo handler. It will not fetch/process a later update until the active image finishes or times out; do not introduce concurrent inference without measured memory/latency evidence.
-- `PHOTO_RECOGNITION_MODE=shadow` must never write model results. Move to `index` only after representative live-photo validation.
-- Bot privacy mode and Telegram update delivery can be inconsistent for ordinary media. Verify photo delivery in the target group before diagnosing model accuracy.
-
-## Running and deployment
-
-Local development:
-
-```bash
-cp .env.example .env
-# Set TELEGRAM_BOT_TOKEN, ALLOWED_CHAT_IDS, and local Ollama settings.
-# The default shadow mode measures recognition without writing records.
-npm install
-npm run dev
+```text
+.vision-venv/bin/python
+scripts/detect_and_read_plates.py
+models/license-plate-detector.pt
 ```
 
-The current production host runs one macOS LaunchAgent named `com.olisikh.bandera-car-index-bot`; see `docs/MAINTENANCE.md`. Do not start `npm start` alongside the agent—two pollers cause Telegram `409 Conflict` errors.
+Core variables:
 
-## Before declaring work complete
+```dotenv
+PHOTO_RECOGNITION_MODE=shadow|index
+PHOTO_RECOGNITION_TIMEOUT_MS=60000
+FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
+```
 
-Confirm all of the following:
+## Development and deployment
 
-- Tests, typecheck, and lint pass.
-- The agent is running after a production change.
-- Sensitive files remain untracked.
-- Any new command is registered, authorized, and tested.
-- Any database change has a forward-compatible migration and test.
+Use strict TypeScript with `.js` ESM imports and preserve the Effect persistence boundary. For every behavior change, use TDD, update user/operational docs, then run:
+
+```bash
+npm test
+npm run typecheck
+npm run lint
+```
+
+The macOS production service is `com.olisikh.bandera-car-index-bot`. Never run a second manual poller alongside it. After deployment, verify the agent is running and its startup log reports `pipeline=detector-fast-ocr`.
+
+SQLite migrations must be additive and idempotent. Do not drop/rebuild production tables or mutate historical data without an approved backup/migration plan.

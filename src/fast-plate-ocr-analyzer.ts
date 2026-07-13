@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { recognizedPlates, type VisionAnalyzer } from "./ollama-vision.js";
+import { recognizedPlates } from "./recognized-plates.js";
+import type { PlateAnalyzer } from "./plate-analyzer.js";
 import type { RecognitionTimings, TimedRecognition } from "./recognition-timings.js";
 
 type ReaderRunner = (command: string, args: ReadonlyArray<string>, input: string, timeoutMs: number) => Promise<string>;
@@ -70,7 +71,7 @@ export const runReaderProcess: ReaderRunner = (command, args, input, timeoutMs) 
   child.stdin.end(input);
 });
 
-export class PythonFastPlateOcrAnalyzer implements VisionAnalyzer {
+export class PythonFastPlateOcrAnalyzer implements PlateAnalyzer {
   private readonly run: ReaderRunner;
 
   constructor(private readonly options: PythonFastPlateOcrAnalyzerOptions) {
@@ -85,7 +86,6 @@ export class PythonFastPlateOcrAnalyzer implements VisionAnalyzer {
       [
         this.options.scriptPath,
         "--model", this.options.detectorModelPath,
-        "--reader", "fast-plate-ocr",
         "--ocr-model", this.options.ocrModel,
       ],
       JSON.stringify({ imageBase64: Buffer.from(image).toString("base64") }),

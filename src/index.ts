@@ -4,9 +4,7 @@ import "dotenv/config";
 import { Bot, InlineKeyboard } from "grammy";
 import { Effect } from "effect";
 import { groupCommands } from "./commands.js";
-import { DetectorCropVisionAnalyzer } from "./detector-crop-analyzer.js";
 import { PythonFastPlateOcrAnalyzer } from "./fast-plate-ocr-analyzer.js";
-import { fastPlateOcrMode } from "./fast-plate-ocr-policy.js";
 import {
   clampPage,
   findCallbackData,
@@ -19,8 +17,6 @@ import {
 import { SqliteIndexStore } from "./database.js";
 import { formatFindResult } from "./find-results.js";
 import { messageLink } from "./message-link.js";
-import { OllamaVisionAnalyzer } from "./ollama-vision.js";
-import { PythonPlateCropDetector } from "./plate-detector.js";
 import { normalizeFindQuery } from "./find-query.js";
 import { processPhotoRecognition, type RecognitionMode } from "./photo-recognition.js";
 import {
@@ -29,7 +25,6 @@ import {
   recognitionSuccessFeedback,
   recognitionTimeoutFeedback,
 } from "./recognition-feedback.js";
-import { recognitionStrategyFrom } from "./recognition-strategy.js";
 import { runLongPolling } from "./polling.js";
 import { SerialQueue } from "./serial-queue.js";
 
@@ -49,56 +44,30 @@ const recognitionModeValue = process.env.PHOTO_RECOGNITION_MODE ?? "shadow";
 if (recognitionModeValue !== "shadow" && recognitionModeValue !== "index") {
   throw new Error("PHOTO_RECOGNITION_MODE must be shadow or index");
 }
-const requestedRecognitionMode: RecognitionMode = recognitionModeValue;
-const recognitionStrategy = recognitionStrategyFrom(process.env.PHOTO_RECOGNITION_STRATEGY);
-const recognitionMode = recognitionStrategy === "detector-fast-ocr"
-  ? fastPlateOcrMode(requestedRecognitionMode, process.env.FAST_PLATE_OCR_ALLOW_INDEX)
-  : requestedRecognitionMode;
-const ollamaModel = process.env.OLLAMA_MODEL ?? "qwen2.5vl:7b";
+const recognitionMode: RecognitionMode = recognitionModeValue;
 const fastPlateOcrModel = process.env.FAST_PLATE_OCR_MODEL ?? "cct-s-v2-global-model";
-const ollamaBaseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
-const ollamaTimeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS ?? "60000");
-if (!Number.isSafeInteger(ollamaTimeoutMs) || ollamaTimeoutMs < 1) {
-  throw new Error("OLLAMA_TIMEOUT_MS must be a positive integer");
+const recognitionTimeoutMs = Number(process.env.PHOTO_RECOGNITION_TIMEOUT_MS ?? "60000");
+if (!Number.isSafeInteger(recognitionTimeoutMs) || recognitionTimeoutMs < 1) {
+  throw new Error("PHOTO_RECOGNITION_TIMEOUT_MS must be a positive integer");
 }
 const detectorPythonPath = resolve(process.env.PLATE_DETECTOR_PYTHON ?? "./.vision-venv/bin/python");
-const detectorScriptPath = resolve(process.env.PLATE_DETECTOR_SCRIPT ?? "./scripts/detect_plate_crops.py");
+const detectorScriptPath = resolve(process.env.PLATE_DETECTOR_SCRIPT ?? "./scripts/detect_and_read_plates.py");
 const detectorModelPath = resolve(process.env.PLATE_DETECTOR_MODEL ?? "./models/license-plate-detector.pt");
-if (recognitionStrategy !== "full-image") {
-  for (const path of [detectorPythonPath, detectorScriptPath, detectorModelPath]) {
-    if (!existsSync(path)) throw new Error(`${recognitionStrategy} mode requires local file: ${path}`);
-  }
+for (const path of [detectorPythonPath, detectorScriptPath, detectorModelPath]) {
+  if (!existsSync(path)) throw new Error(`detector-fast-ocr requires local file: ${path}`);
 }
 
 const database = new SqliteIndexStore(process.env.DATABASE_PATH ?? "./data/index.db");
 const bot = new Bot(token);
 const photoQueue = new SerialQueue();
-const fullImageAnalyzer = new OllamaVisionAnalyzer({
-  baseUrl: ollamaBaseUrl,
-  model: ollamaModel,
-  timeoutMs: ollamaTimeoutMs,
+const visionAnalyzer = new PythonFastPlateOcrAnalyzer({
+  pythonPath: detectorPythonPath,
+  scriptPath: detectorScriptPath,
+  detectorModelPath,
+  ocrModel: fastPlateOcrModel,
+  timeoutMs: recognitionTimeoutMs,
 });
-const visionAnalyzer = recognitionStrategy === "detector-crop"
-  ? new DetectorCropVisionAnalyzer(
-    new PythonPlateCropDetector({
-      pythonPath: detectorPythonPath,
-      scriptPath: detectorScriptPath,
-      modelPath: detectorModelPath,
-    }),
-    fullImageAnalyzer,
-  )
-  : recognitionStrategy === "detector-fast-ocr"
-    ? new PythonFastPlateOcrAnalyzer({
-      pythonPath: detectorPythonPath,
-      scriptPath: detectorScriptPath,
-      detectorModelPath,
-      ocrModel: fastPlateOcrModel,
-      timeoutMs: ollamaTimeoutMs,
-    })
-    : fullImageAnalyzer;
-const activeReader = recognitionStrategy === "detector-fast-ocr"
-  ? `fast-plate-ocr:${fastPlateOcrModel}`
-  : `ollama:${ollamaModel}`;
+const activeReader = `fast-plate-ocr:${fastPlateOcrModel}`;
 
 const allowed = (chatId: number): boolean => allowedChats.has(String(chatId));
 
@@ -334,5 +303,5 @@ bot.on("callback_query:data", async (ctx) => {
 });
 
 await bot.api.setMyCommands(groupCommands, { scope: { type: "all_group_chats" } });
-console.info(`Bot is running; photo recognition mode=${recognitionMode} strategy=${recognitionStrategy} reader=${activeReader}`);
+console.info(`Bot is running; photo recognition mode=${recognitionMode} pipeline=detector-fast-ocr reader=${activeReader}`);
 await runLongPolling(bot);

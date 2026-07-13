@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { indexRecognizedPhotoMessage, type IndexStore } from "./indexing.js";
-import type { VisionAnalyzer } from "./ollama-vision.js";
+import type { PlateAnalyzer } from "./plate-analyzer.js";
 import type { TimedRecognition } from "./recognition-timings.js";
 
 export type RecognitionMode = "shadow" | "index";
@@ -9,7 +9,7 @@ export interface PhotoDownloader {
   readonly download: (fileId: string) => Promise<Uint8Array>;
 }
 
-export interface PhotoRecognitionDependencies extends PhotoDownloader, VisionAnalyzer {
+export interface PhotoRecognitionDependencies extends PhotoDownloader, PlateAnalyzer {
   readonly store: IndexStore;
   readonly mode: RecognitionMode;
 }

@@ -21,7 +21,7 @@ The bot now:
 4. uses the supported local recognition path:
 
    ```text
-   YOLO plate detector → enlarged in-memory crop → local Qwen reader
+   YOLO plate detector → enlarged in-memory crop → local FastPlateOCR reader
    ```
 
 5. normalizes and strictly validates each candidate before indexing;

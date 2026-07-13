@@ -6,7 +6,7 @@ describe("PythonFastPlateOcrAnalyzer", () => {
     const run = vi.fn().mockResolvedValue('{"plates":["АА 1234 ВВ", "not-a-plate", "2923"]}');
     const analyzer = new PythonFastPlateOcrAnalyzer({
       pythonPath: "/venv/bin/python",
-      scriptPath: "/project/scripts/detect_plate_crops.py",
+      scriptPath: "/project/scripts/detect_and_read_plates.py",
       detectorModelPath: "/project/models/license-plate-detector.pt",
       ocrModel: "cct-s-v2-global-model",
       run,
@@ -16,9 +16,8 @@ describe("PythonFastPlateOcrAnalyzer", () => {
     expect(run).toHaveBeenCalledWith(
       "/venv/bin/python",
       [
-        "/project/scripts/detect_plate_crops.py",
+        "/project/scripts/detect_and_read_plates.py",
         "--model", "/project/models/license-plate-detector.pt",
-        "--reader", "fast-plate-ocr",
         "--ocr-model", "cct-s-v2-global-model",
       ],
       JSON.stringify({ imageBase64: "AQID" }),
