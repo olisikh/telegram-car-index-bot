@@ -19,10 +19,12 @@ npm run dev
 
 ```dotenv
 OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=gemma4:latest
+OLLAMA_MODEL=qwen2.5vl:7b
 OLLAMA_TIMEOUT_MS=60000
-PHOTO_RECOGNITION_STRATEGY=full-image
+PHOTO_RECOGNITION_STRATEGY=detector-crop
 ```
+
+This is the supported production path: local YOLO detector → enlarged in-memory plate crop → local Qwen reader. `full-image` is retained only as a diagnostic fallback; do not select it for a new deployment.
 
 Verify the configured model is local and vision-capable:
 
@@ -47,13 +49,13 @@ The application validates all three at startup. Recreate them using the commands
 
 ### 1. Verify Telegram photo delivery
 
-With Group Privacy disabled and the bot in the intended allowed group, send:
+With Group Privacy disabled and the bot in the intended allowed **supergroup**, send:
 
 - a plain single photo;
-- a photo with a caption;
+- a photo with a caption (the photo is analyzed; its caption is ignored);
 - a multi-photo Telegram album.
 
-Confirm `data/bot.out.log` records `photo=true` for every expected message. The bot deliberately ignores captions and text.
+If Group Privacy was disabled after the bot joined, remove and re-add the bot before testing. Confirm `data/bot.out.log` records `photo=true` for every expected message. Ordinary text is deliberately ignored.
 
 ### 2. Shadow-mode validation
 
@@ -165,7 +167,7 @@ Logs must not contain captions, downloaded image data, full model responses, or 
 2. Bot belongs to the intended supergroup.
 3. Group Privacy is disabled in BotFather if ordinary photo updates must reach the bot.
 4. The group ID is in `ALLOWED_CHAT_IDS`.
-5. Bot commands include `/find`, `/list`, and `/verbose` after startup; `/car` must not appear.
+5. The command menu contains `/find`, `/list`, and `/verbose`; no manual indexing command is registered.
 6. `src/polling.ts` requests both `message` and `callback_query` updates.
 7. Ollama is reachable at the configured `OLLAMA_BASE_URL` before enabling `index` mode.
 8. If `PHOTO_RECOGNITION_STRATEGY=detector-crop`, the local detector Python/script/model files pass the startup check.

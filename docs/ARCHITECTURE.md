@@ -2,7 +2,7 @@
 
 ## Purpose and boundaries
 
-The bot maintains a private, chat-scoped vehicle-plate index for an auto-service Telegram group. It analyzes incoming **photo messages only** with configured local recognition strategies: the original full-image Ollama prompt or a local detector followed by cropped-plate Ollama reading. A plate is saved only after the model returns a strict candidate and the TypeScript application normalizes and validates it.
+The bot maintains a private, chat-scoped vehicle-plate index for allow-listed Telegram **supergroups**. It analyzes incoming photo messages through the production local recognition path: YOLO detection followed by cropped-plate reading with local Qwen. The legacy full-image Ollama strategy remains only for controlled diagnostic comparison or rollback. A plate is saved only after the reader returns a strict candidate and the TypeScript application normalizes and validates it.
 
 The bot is not a general message archive, OCR crawler, or public vehicle-tracking service.
 
@@ -14,7 +14,7 @@ Telegram photo update
   -> allow-listed `message:photo` handler (`src/index.ts`)
   -> largest Telegram PhotoSize downloaded into memory
   -> one-at-a-time queue (`src/serial-queue.ts`)
-  -> recognition strategy (`full-image`: Ollama; `detector-crop`: local detector → in-memory crop(s) → Ollama)
+  -> recognition strategy (`detector-crop`: local detector → in-memory crop(s) → Qwen; `full-image`: diagnostic fallback)
   -> JSON parse, plate normalization, and format validation
   -> shadow observation OR SQLite index (`src/photo-recognition.ts`)
   -> `/find` and `/list` retrieve links from SQLite
@@ -28,16 +28,17 @@ The custom poller requests both `message` and `callback_query` updates. Callback
 | --- | --- | --- |
 | `/find <plate>` | Return links to indexed photo messages for one plate. | Current chat only |
 | `/list` | Show unique plates, newest mention first, ten per page. | Current chat only |
+| `/verbose on` / `/verbose off` | Enable or disable per-photo recognition feedback in the current chat. | Current chat only |
 | `/start` | Show brief automatic-photo-indexing guidance. | Current allowed chat |
 
-There is deliberately no `/car` command. Text, captions, videos, animations, and documents are not indexing inputs.
+The bot has no manual plate-tagging command. Only native Telegram `message:photo` updates are indexing inputs; photo captions are ignored, and text, videos, animations, and documents are not processed.
 
 ## Recognition strategies
 
 | Strategy | Flow | Notes |
 | --- | --- | --- |
-| `full-image` | Original photo → Ollama | Original prompt-only implementation. |
-| `detector-crop` | Original photo → `scripts/detect_plate_crops.py` → up to five enlarged JPEG crops → Ollama | Recommended for smaller/distant plates. |
+| `full-image` | Original photo → local Ollama | Legacy diagnostic fallback; not selected for a new deployment. |
+| `detector-crop` | Original photo → `scripts/detect_plate_crops.py` → up to five enlarged JPEG crops → local `qwen2.5vl:7b` | Supported production path for smaller/distant plates. |
 
 `detector-crop` invokes the local YOLO detector through stdin/stdout. Source photos and generated crops exist only in memory; no temporary media files are created. The detector script/model/Python environment are validated at startup whenever this strategy is selected.
 
@@ -68,7 +69,7 @@ Photo bytes are passed from Telegram directly to Ollama in memory as base64 and 
 | `shadow` | None | Measure live recognition quality without polluting the index. |
 | `index` | Validated recognized plates only | Production automatic indexing. |
 
-The default is `shadow`. Change to `index` only after representative live images have been evaluated.
+The default new-install configuration is `shadow` mode with the detector-crop/Qwen path. Change to `index` only after representative live images have been evaluated.
 
 ## Recognition feedback
 
@@ -112,6 +113,7 @@ This table remains for legacy media records. New automatic photo recognition doe
 ## Privacy and access model
 
 - `ALLOWED_CHAT_IDS` is required at startup and checked in every data-bearing handler.
+- Source-message links require a supergroup; a legacy/basic group must be migrated and its replacement `-100…` ID added to the allow-list.
 - Reads and writes are scoped to the originating `chat_id`.
 - The database contains no downloaded Telegram media and no full message/caption bodies.
 - Message URLs are useful only to Telegram users who already have source-group access.
