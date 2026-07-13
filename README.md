@@ -20,7 +20,7 @@ Search an indexed plate or a 3+ character fragment of a plate:
 /find AX6
 ```
 
-The first example looks for the exact plate; shorter queries use a full-text plate index to match any substring of stored plates. Results are always scoped to the current chat.
+The first example looks for the exact plate; shorter queries use a full-text plate index to match any substring of stored plates. Results are always scoped to the current chat. Every result line includes the matched plate, then its source link and Kyiv timestamp, so a broad query remains scannable.
 
 Browse distinct indexed cars, newest mention first:
 

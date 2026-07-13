@@ -11,7 +11,7 @@ describe("formatFindResult", () => {
       createdAt: "2026-07-13 11:25:00",
     }, 1);
 
-    expect(formatted).toBe('1. <a href="https://t.me/c/123/42">лінк</a> — 13.07.2026 14:25');
+    expect(formatted).toBe('1. AA1234BB · <a href="https://t.me/c/123/42">лінк</a> — 13.07.2026 14:25');
   });
 
   it("does not show a stored media preview for old photo records", () => {

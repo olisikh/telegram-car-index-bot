@@ -24,4 +24,4 @@ const photoPostedAt = (createdAt: string): string => {
 };
 
 export const formatFindResult = (result: SearchResult, index: number): string =>
-  `${index}. <a href="${escapeHtml(result.messageUrl)}">лінк</a> — ${photoPostedAt(result.createdAt)}`;
+  `${index}. ${escapeHtml(result.plate)} · <a href="${escapeHtml(result.messageUrl)}">лінк</a> — ${photoPostedAt(result.createdAt)}`;

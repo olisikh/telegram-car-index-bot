@@ -26,12 +26,12 @@ The custom poller requests both `message` and `callback_query` updates. Callback
 
 | Command | Purpose | Scope |
 | --- | --- | --- |
-| `/find <plate>` | Return links to indexed photo messages for one plate or a 3+ character plate fragment. | Current chat only |
-
-The command menu contains `/find`, `/list`, and `/verbose`; no manual indexing command is registered.
+| `/find <plate>` | Return links to indexed photo messages for one plate or a 3+ character plate fragment; every result shows its matched plate. | Current chat only |
 | `/list` | Show unique plates, newest mention first, ten per page. | Current chat only |
 | `/verbose on` / `/verbose off` | Enable or disable per-photo recognition feedback in the current chat. | Current chat only |
 | `/start` | Show brief automatic-photo-indexing guidance. | Current allowed chat |
+
+The command menu contains `/find`, `/list`, and `/verbose`; no manual indexing command is registered.
 
 The bot has no manual plate-tagging command. Only native Telegram `message:photo` updates are indexing inputs; photo captions are ignored, and text, videos, animations, and documents are not processed.
 
