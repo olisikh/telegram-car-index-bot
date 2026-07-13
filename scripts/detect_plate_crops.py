@@ -84,7 +84,9 @@ def main() -> int:
         plates: list[str] = []
         for _, xyxy in sorted(detections, reverse=True)[:MAX_CROPS]:
             crop = crop_plate(image, xyxy)
-            for prediction in reader.run(crop, return_confidence=True):
+            # OpenCV stores images as BGR; FastPlateOCR expects in-memory RGB arrays.
+            rgb_crop = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+            for prediction in reader.run(rgb_crop, return_confidence=True):
                 plate = getattr(prediction, "plate", None)
                 if isinstance(plate, str):
                     plates.append(plate)

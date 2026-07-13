@@ -226,7 +226,7 @@ PHOTO_RECOGNITION_STRATEGY=detector-fast-ocr
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
 ```
 
-Do not switch Flow 3 to `index` mode until you have compared exact results on representative service photos.
+Do not switch Flow 3 to `index` mode until you have compared exact results on representative service photos. After acceptance, it also requires an explicit `FAST_PLATE_OCR_ALLOW_INDEX=true` acknowledgement before it can write any record.
 
 To allow more than one group or a private test chat, separate IDs with commas:
 

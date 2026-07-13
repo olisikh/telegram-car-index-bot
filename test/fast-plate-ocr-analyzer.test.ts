@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { PythonFastPlateOcrAnalyzer } from "../src/fast-plate-ocr-analyzer.js";
+import { PythonFastPlateOcrAnalyzer, runReaderProcess } from "../src/fast-plate-ocr-analyzer.js";
 
 describe("PythonFastPlateOcrAnalyzer", () => {
   it("runs the detector and FastPlateOCR reader once per source photo and validates its output", async () => {
@@ -22,6 +22,7 @@ describe("PythonFastPlateOcrAnalyzer", () => {
         "--ocr-model", "cct-s-v2-global-model",
       ],
       JSON.stringify({ imageBase64: "AQID" }),
+      60_000,
     );
   });
 
@@ -35,5 +36,10 @@ describe("PythonFastPlateOcrAnalyzer", () => {
     });
 
     await expect(analyzer.analyze(Uint8Array.from([1]))).resolves.toEqual([]);
+  });
+
+  it("terminates a reader process that exceeds its timeout", async () => {
+    await expect(runReaderProcess(process.execPath, ["-e", "setTimeout(() => {}, 1_000)"], "", 25))
+      .rejects.toMatchObject({ name: "TimeoutError" });
   });
 });

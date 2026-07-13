@@ -55,7 +55,7 @@ For `detector-fast-ocr`, install the local ONNX reader in the same Python enviro
 .vision-venv/bin/python -m pip install 'fast-plate-ocr[onnx]'
 ```
 
-The first reader invocation downloads an approximately 5 MB model. Test this strategy only with `PHOTO_RECOGNITION_MODE=shadow`; FastPlateOCR's optional region output is not used for Ukrainian/EU acceptance.
+The first reader invocation downloads an approximately 5 MB model. Test this strategy only with `PHOTO_RECOGNITION_MODE=shadow`; FastPlateOCR's optional region output is not used for Ukrainian/EU acceptance. The reader has the same `OLLAMA_TIMEOUT_MS` process deadline as the Ollama reader. It cannot write a record until both `PHOTO_RECOGNITION_MODE=index` and `FAST_PLATE_OCR_ALLOW_INDEX=true` are explicitly set after a benchmark is accepted.
 
 ## Recognition rollout procedure
 

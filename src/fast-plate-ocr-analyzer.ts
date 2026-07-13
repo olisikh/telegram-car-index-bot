@@ -1,26 +1,50 @@
 import { spawn } from "node:child_process";
 import { recognizedPlates, type VisionAnalyzer } from "./ollama-vision.js";
 
-type ReaderRunner = (command: string, args: ReadonlyArray<string>, input: string) => Promise<string>;
+type ReaderRunner = (command: string, args: ReadonlyArray<string>, input: string, timeoutMs: number) => Promise<string>;
 
 export interface PythonFastPlateOcrAnalyzerOptions {
   readonly pythonPath: string;
   readonly scriptPath: string;
   readonly detectorModelPath: string;
   readonly ocrModel: string;
+  readonly timeoutMs?: number;
   readonly run?: ReaderRunner;
 }
 
-const runReaderProcess: ReaderRunner = (command, args, input) => new Promise((resolve, reject) => {
+const timeoutError = (): Error => {
+  const error = new Error("local FastPlateOCR reader timed out");
+  error.name = "TimeoutError";
+  return error;
+};
+
+export const runReaderProcess: ReaderRunner = (command, args, input, timeoutMs) => new Promise((resolve, reject) => {
   const child = spawn(command, [...args], { stdio: ["pipe", "pipe", "pipe"] });
   let stdout = "";
   let stderr = "";
+  let settled = false;
+  const resolveOnce = (value: string): void => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    resolve(value);
+  };
+  const rejectOnce = (error: Error): void => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    reject(error);
+  };
+  const timer = setTimeout(() => {
+    child.kill();
+    rejectOnce(timeoutError());
+  }, timeoutMs);
   child.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
   child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
-  child.on("error", reject);
+  child.on("error", rejectOnce);
   child.on("close", (code) => {
-    if (code === 0) resolve(stdout);
-    else reject(new Error(`local FastPlateOCR reader failed (${code ?? "unknown"}): ${stderr.trim()}`));
+    if (code === 0) resolveOnce(stdout);
+    else rejectOnce(new Error(`local FastPlateOCR reader failed (${code ?? "unknown"}): ${stderr.trim()}`));
   });
   child.stdin.end(input);
 });
@@ -42,6 +66,7 @@ export class PythonFastPlateOcrAnalyzer implements VisionAnalyzer {
         "--ocr-model", this.options.ocrModel,
       ],
       JSON.stringify({ imageBase64: Buffer.from(image).toString("base64") }),
+      this.options.timeoutMs ?? 60_000,
     );
     return recognizedPlates(output);
   };

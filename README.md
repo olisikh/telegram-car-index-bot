@@ -125,7 +125,7 @@ FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
 
 FastPlateOCR downloads an approximately 5 MB ONNX reader on first use. It is a reader, not a detector: the existing local YOLO crop stage remains mandatory. Its optional region result is ignored; the existing Ukrainian/EU validator remains the authority for acceptance.
 
-Do not switch a live indexing chat to this strategy from one successful photo. Compare exact plate reads against the Qwen path across clear, distant, angled, dark, reflective, multi-car, Ukrainian civilian, and four-digit police photos first.
+Do not switch a live indexing chat to this strategy from one successful photo. Compare exact plate reads against the Qwen path across clear, distant, angled, dark, reflective, multi-car, Ukrainian civilian, and four-digit police photos first. Even after the benchmark, Flow 3 refuses to write records unless `FAST_PLATE_OCR_ALLOW_INDEX=true` is explicitly set alongside `PHOTO_RECOGNITION_MODE=index`.
 
 ## Run locally
 

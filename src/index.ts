@@ -6,6 +6,7 @@ import { Effect } from "effect";
 import { groupCommands } from "./commands.js";
 import { DetectorCropVisionAnalyzer } from "./detector-crop-analyzer.js";
 import { PythonFastPlateOcrAnalyzer } from "./fast-plate-ocr-analyzer.js";
+import { fastPlateOcrMode } from "./fast-plate-ocr-policy.js";
 import { clampPage, findCallbackData, listCallbackData, LIST_PAGE_SIZE, pageCount, parseListCallback } from "./car-list.js";
 import { SqliteIndexStore } from "./database.js";
 import { formatFindResult } from "./find-results.js";
@@ -40,8 +41,11 @@ const recognitionModeValue = process.env.PHOTO_RECOGNITION_MODE ?? "shadow";
 if (recognitionModeValue !== "shadow" && recognitionModeValue !== "index") {
   throw new Error("PHOTO_RECOGNITION_MODE must be shadow or index");
 }
-const recognitionMode: RecognitionMode = recognitionModeValue;
+const requestedRecognitionMode: RecognitionMode = recognitionModeValue;
 const recognitionStrategy = recognitionStrategyFrom(process.env.PHOTO_RECOGNITION_STRATEGY);
+const recognitionMode = recognitionStrategy === "detector-fast-ocr"
+  ? fastPlateOcrMode(requestedRecognitionMode, process.env.FAST_PLATE_OCR_ALLOW_INDEX)
+  : requestedRecognitionMode;
 const ollamaModel = process.env.OLLAMA_MODEL ?? "qwen2.5vl:7b";
 const fastPlateOcrModel = process.env.FAST_PLATE_OCR_MODEL ?? "cct-s-v2-global-model";
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
@@ -81,6 +85,7 @@ const visionAnalyzer = recognitionStrategy === "detector-crop"
       scriptPath: detectorScriptPath,
       detectorModelPath,
       ocrModel: fastPlateOcrModel,
+      timeoutMs: ollamaTimeoutMs,
     })
     : fullImageAnalyzer;
 const activeReader = recognitionStrategy === "detector-fast-ocr"
