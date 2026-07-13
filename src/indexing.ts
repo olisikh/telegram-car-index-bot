@@ -17,6 +17,30 @@ export interface IndexStore {
   readonly save: (record: IndexRecord) => Effect.Effect<void>;
 }
 
+export interface RecognizedPhotoMessage {
+  readonly chatId: number;
+  readonly messageId: number;
+  readonly chatUsername?: string;
+  readonly plates: ReadonlyArray<string>;
+  readonly mediaGroupId?: string;
+}
+
+export const indexRecognizedPhotoMessage = (store: IndexStore, message: RecognizedPhotoMessage): Effect.Effect<void> =>
+  Effect.forEach(message.plates, (plate) =>
+    store.save({
+      plate,
+      chatId: message.chatId,
+      messagePreview: "Фото",
+      mediaType: "photo",
+      ...(message.mediaGroupId ? { mediaGroupId: message.mediaGroupId } : {}),
+      messageUrl: messageLink({
+        chatId: message.chatId,
+        messageId: message.messageId,
+        username: message.chatUsername,
+      }),
+    }),
+  ).pipe(Effect.asVoid);
+
 export interface PhotoMessage {
   readonly chatId: number;
   readonly messageId: number;

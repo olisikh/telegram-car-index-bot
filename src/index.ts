@@ -2,15 +2,14 @@ import "dotenv/config";
 import { Bot, InlineKeyboard } from "grammy";
 import { Effect } from "effect";
 import { groupCommands } from "./commands.js";
-import { carCommandPlate } from "./car-command.js";
 import { clampPage, findCallbackData, listCallbackData, LIST_PAGE_SIZE, pageCount, parseListCallback } from "./car-list.js";
-import { indexCarMessage } from "./car-indexing.js";
 import { SqliteIndexStore } from "./database.js";
 import { formatFindResult } from "./find-results.js";
-import { mediaTypeFromMessage } from "./message-media-type.js";
+import { OllamaVisionAnalyzer } from "./ollama-vision.js";
 import { normalizePlate } from "./plates.js";
+import { processPhotoRecognition, type RecognitionMode } from "./photo-recognition.js";
 import { runLongPolling } from "./polling.js";
-import { indexTaggedMediaReply } from "./tagged-photo.js";
+import { SerialQueue } from "./serial-queue.js";
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) throw new Error("TELEGRAM_BOT_TOKEN is required");
@@ -24,8 +23,26 @@ if (allowedChats.size === 0) {
   throw new Error("ALLOWED_CHAT_IDS is required to prevent indexing unauthorised chats");
 }
 
+const recognitionModeValue = process.env.PHOTO_RECOGNITION_MODE ?? "shadow";
+if (recognitionModeValue !== "shadow" && recognitionModeValue !== "index") {
+  throw new Error("PHOTO_RECOGNITION_MODE must be shadow or index");
+}
+const recognitionMode: RecognitionMode = recognitionModeValue;
+const ollamaModel = process.env.OLLAMA_MODEL ?? "gemma4:latest";
+const ollamaBaseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
+const ollamaTimeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS ?? "60000");
+if (!Number.isSafeInteger(ollamaTimeoutMs) || ollamaTimeoutMs < 1) {
+  throw new Error("OLLAMA_TIMEOUT_MS must be a positive integer");
+}
+
 const database = new SqliteIndexStore(process.env.DATABASE_PATH ?? "./data/index.db");
 const bot = new Bot(token);
+const photoQueue = new SerialQueue();
+const visionAnalyzer = new OllamaVisionAnalyzer({
+  baseUrl: ollamaBaseUrl,
+  model: ollamaModel,
+  timeoutMs: ollamaTimeoutMs,
+});
 
 const allowed = (chatId: number): boolean => allowedChats.has(String(chatId));
 
@@ -62,7 +79,19 @@ const listView = async (chatId: number, requestedPage: number): Promise<{
   };
 };
 
-// Receipt telemetry: contains no message text or image data, only update shape.
+const downloadPhoto = async (fileId: string): Promise<Uint8Array> => {
+  const remoteFile = await bot.api.getFile(fileId);
+  if (!remoteFile.file_path) throw new Error("Telegram did not return a file path for the photo");
+  const response = await fetch(`https://api.telegram.org/file/bot${token}/${remoteFile.file_path}`, {
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!response.ok) throw new Error(`Telegram photo download failed: ${response.status}`);
+  const image = new Uint8Array(await response.arrayBuffer());
+  if (image.byteLength > 20 * 1024 * 1024) throw new Error("Telegram photo exceeds 20 MiB analysis limit");
+  return image;
+};
+
+// Receipt telemetry deliberately contains no message text, captions, image bytes, or model output.
 bot.use(async (ctx, next) => {
   const message = ctx.update.message;
   if (message) {
@@ -78,81 +107,37 @@ bot.use(async (ctx, next) => {
 
 bot.command("start", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  await ctx.reply("Готово. Надішли /car AA1234BB як повідомлення або підпис до фото чи відео.\nПошук: /find AA1234BB · Список: /list");
+  await ctx.reply("Готово. Надішли фото авто — бот спробує розпізнати ДНЗ.\nПошук: /find AA1234BB · Список: /list");
 });
 
-bot.on(["message:photo", "message:video", "message:animation", "message:document"], async (ctx) => {
+bot.on("message:photo", (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  const mediaType = mediaTypeFromMessage(ctx.message);
-  if (!mediaType) return;
-  const mediaGroupId = ctx.message.media_group_id;
-  if (mediaGroupId) {
-    await Effect.runPromise(database.recordMediaGroupMember({
+  const largestPhoto = ctx.message.photo.at(-1);
+  if (!largestPhoto) return;
+
+  void photoQueue.enqueue(async () => {
+    const plates = await processPhotoRecognition({
+      store: database,
+      download: downloadPhoto,
+      analyze: visionAnalyzer.analyze,
+      mode: recognitionMode,
+    }, {
       chatId: ctx.chat.id,
-      mediaGroupId,
       messageId: ctx.message.message_id,
-      mediaType,
-    }));
-  }
-  if (!ctx.message.caption) return;
-  const plate = carCommandPlate(ctx.message.caption);
-  if (!plate) return;
-
-  await Effect.runPromise(indexCarMessage(database, {
-    chatId: ctx.chat.id,
-    messageId: ctx.message.message_id,
-    chatUsername: chatUsername(ctx.chat),
-    text: ctx.message.caption,
-    mediaType,
-    mediaGroupId,
-  }));
-  await ctx.reply(`✅ Збережено ${plate}`);
-});
-
-bot.on("message:text", async (ctx, next) => {
-  if (allowed(ctx.chat.id)) {
-    const repliedMessage = ctx.message.reply_to_message;
-    const mediaType = repliedMessage && ("photo" in repliedMessage ? "photo" : "video" in repliedMessage ? "video" : undefined);
-    if (repliedMessage && mediaType) {
-      const mediaGroupId = repliedMessage.media_group_id;
-      if (mediaGroupId) {
-        await Effect.runPromise(database.recordMediaGroupMember({
-          chatId: ctx.chat.id,
-          mediaGroupId,
-          messageId: repliedMessage.message_id,
-          mediaType,
-        }));
-      }
-      await Effect.runPromise(indexTaggedMediaReply(database, {
-        chatId: ctx.chat.id,
-        mediaMessageId: repliedMessage.message_id,
-        chatUsername: chatUsername(ctx.chat),
-        text: ctx.message.text,
-        mediaType,
-        mediaGroupId,
-      }));
-    }
-  }
-  await next();
-});
-
-bot.command("car", async (ctx) => {
-  if (!allowed(ctx.chat.id)) return;
-  const message = ctx.message;
-  if (!message?.text) return;
-  const plate = carCommandPlate(message.text);
-  if (!plate) {
-    await ctx.reply("Формат: /car AA1234BB");
-    return;
-  }
-
-  await Effect.runPromise(indexCarMessage(database, {
-    chatId: ctx.chat.id,
-    messageId: message.message_id,
-    chatUsername: chatUsername(ctx.chat),
-    text: message.text,
-  }));
-  await ctx.reply(`✅ Збережено ${plate}`);
+      fileId: largestPhoto.file_id,
+      chatUsername: chatUsername(ctx.chat),
+      mediaGroupId: ctx.message.media_group_id,
+    });
+    console.info(
+      `photo recognition chat=${ctx.chat.id} message=${ctx.message.message_id}`
+      + ` candidates=${plates.length} mode=${recognitionMode}`,
+    );
+  }).catch((error: unknown) => {
+    console.error(
+      `photo recognition failed chat=${ctx.chat.id} message=${ctx.message.message_id}`,
+      error instanceof Error ? error.message : String(error),
+    );
+  });
 });
 
 bot.command("list", async (ctx) => {
@@ -207,5 +192,5 @@ bot.on("callback_query:data", async (ctx) => {
 });
 
 await bot.api.setMyCommands(groupCommands, { scope: { type: "all_group_chats" } });
-console.info("Bot is running");
+console.info(`Bot is running; photo recognition mode=${recognitionMode} model=${ollamaModel}`);
 await runLongPolling(bot);

@@ -5,6 +5,7 @@
 ```bash
 cp .env.example .env
 # Set TELEGRAM_BOT_TOKEN and one or more comma-separated ALLOWED_CHAT_IDS.
+# Keep PHOTO_RECOGNITION_MODE=shadow while validating local recognition.
 npm install
 npm test
 npm run typecheck
@@ -12,7 +13,64 @@ npm run lint
 npm run dev
 ```
 
-`ALLOWED_CHAT_IDS` is mandatory in every environment, including local development. Use a test group/chat ID when developing against Telegram.
+`ALLOWED_CHAT_IDS` is mandatory in every environment. The default Ollama endpoint is local:
+
+```dotenv
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=gemma4:latest
+OLLAMA_TIMEOUT_MS=60000
+```
+
+Verify the configured model is local and vision-capable:
+
+```bash
+ollama show "$OLLAMA_MODEL"
+curl --silent --show-error http://127.0.0.1:11434/api/tags
+```
+
+## Recognition rollout procedure
+
+### 1. Verify Telegram photo delivery
+
+With Group Privacy disabled and the bot in the intended allowed group, send:
+
+- a plain single photo;
+- a photo with a caption;
+- a multi-photo Telegram album.
+
+Confirm `data/bot.out.log` records `photo=true` for every expected message. The bot deliberately ignores captions and text.
+
+### 2. Shadow-mode validation
+
+Keep this setting:
+
+```dotenv
+PHOTO_RECOGNITION_MODE=shadow
+```
+
+Send representative real service photos: clear, angled, distant, dark, and album photos. The bot analyzes them but writes no new index rows. Review safe telemetry:
+
+```bash
+tail -f ~/telegram-car-index-bot/data/bot.out.log
+```
+
+Expected completion line:
+
+```text
+photo recognition chat=<id> message=<id> candidates=<n> mode=shadow
+```
+
+Compare candidates against the original images in Telegram. Do not treat a successful model response as proven accuracy—measure exact plate reads on representative images.
+
+### 3. Enable automatic indexing
+
+Only after review, change:
+
+```dotenv
+PHOTO_RECOGNITION_MODE=index
+```
+
+Then restart the agent. New valid candidates will be indexed; historical records remain unchanged.
 
 ## Routine change procedure
 
@@ -26,9 +84,9 @@ npm run dev
    npm run lint
    ```
 
-4. Update `README.md`, `AGENTS.md`, or these docs when behavior/operations change.
-5. Commit and push only source, tests, and documentation—not `.env`, `data/`, or logs.
-6. Deploy and verify the LaunchAgent as described below.
+4. Update `README.md`, `AGENTS.md`, and docs when behavior/operations change.
+5. Commit and push source, tests, and documentation only—not `.env`, `data/`, logs, or test photos.
+6. Deploy and verify the LaunchAgent.
 
 ## Production process: macOS LaunchAgent
 
@@ -44,7 +102,7 @@ Its plist is installed at:
 ~/Library/LaunchAgents/com.olisikh.bandera-car-index-bot.plist
 ```
 
-The launch agent starts `npm start` from the repository. It writes logs under `data/`:
+The agent starts `npm start` from the repository. It writes logs under `data/`:
 
 ```text
 data/bot.out.log
@@ -78,16 +136,17 @@ tail -f ~/telegram-car-index-bot/data/bot.out.log
 tail -f ~/telegram-car-index-bot/data/bot.err.log
 ```
 
-Telemetry logs only update shape (chat/message IDs and media flags), not captions or media bytes.
+Logs must not contain captions, downloaded image data, full model responses, or bot tokens.
 
 ## Telegram configuration checklist
 
 1. Bot token is valid and present only in `.env`.
 2. Bot belongs to the intended supergroup.
-3. Group Privacy is disabled in BotFather if the bot must receive ordinary media updates.
+3. Group Privacy is disabled in BotFather if ordinary photo updates must reach the bot.
 4. The group ID is in `ALLOWED_CHAT_IDS`.
-5. Bot commands include `/car`, `/find`, and `/list` after startup.
-6. For a button-based feature, verify `callback_query` is present in `src/polling.ts` `allowedUpdates`.
+5. Bot commands include `/find` and `/list` after startup; `/car` must not appear.
+6. `src/polling.ts` requests both `message` and `callback_query` updates.
+7. Ollama is reachable at the configured `OLLAMA_BASE_URL` before enabling `index` mode.
 
 ## Database backup and recovery
 
@@ -113,7 +172,7 @@ Protect backups exactly like the primary database: they contain plates and Teleg
 
 2. Keep a copy of the current database, then replace `data/index.db` with the chosen backup.
 3. Remove stale `data/index.db-wal` and `data/index.db-shm` files if present.
-4. Bootstrap or kickstart the agent again:
+4. Bootstrap the agent again:
 
    ```bash
    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.olisikh.bandera-car-index-bot.plist
@@ -131,17 +190,22 @@ Another poller is using the same token. Stop manual `npm start` processes and en
 
 Confirm the loop requests `callback_query` as well as `message` updates. This is a polling configuration issue, not a keyboard-layout issue.
 
-### Photo/video was not indexed
+### Photo was not analyzed
 
-First verify the exact `/car <plate>` command/caption was used and that the group is allow-listed. Then inspect telemetry to see how Telegram classified it (`photo`, `video`, `animation`, or `document`). Videos sent as files are handled when their MIME type begins with `video/`.
+Check that the message is a Telegram `photo`, the group is allow-listed, and Group Privacy is disabled. Confirm Ollama is running, then inspect `bot.err.log` for Telegram download, timeout, or Ollama HTTP failures.
+
+### Candidate is wrong or a clear plate was missed
+
+Leave the bot in `shadow` mode. Capture the message link and expected plate in a private evaluation note, but do not commit source photos or plate datasets to this repository. Compare multiple representative cases before changing prompt, model, or validation policy.
 
 ### Bot ignores everything
 
-Check the agent status and both logs. Then check `ALLOWED_CHAT_IDS`, Group Privacy configuration, and whether a bot-token conflict appears in the error log.
+Check the agent status and both logs. Then check `ALLOWED_CHAT_IDS`, Group Privacy configuration, Ollama reachability, and whether a bot-token conflict appears in the error log.
 
 ## Security hygiene
 
 - Never paste a full production token into an issue, commit, or documentation.
 - Rotate tokens immediately after accidental exposure.
+- Do not point `OLLAMA_BASE_URL` at a remote/cloud service without explicit approval: it transfers incoming Telegram images outside this Mac.
 - Back up the database securely; never upload it to public issue trackers.
 - Keep access to the Telegram group and the host account limited to authorized staff.
