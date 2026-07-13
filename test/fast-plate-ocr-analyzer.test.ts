@@ -1,0 +1,39 @@
+import { describe, expect, it, vi } from "vitest";
+import { PythonFastPlateOcrAnalyzer } from "../src/fast-plate-ocr-analyzer.js";
+
+describe("PythonFastPlateOcrAnalyzer", () => {
+  it("runs the detector and FastPlateOCR reader once per source photo and validates its output", async () => {
+    const run = vi.fn().mockResolvedValue('{"plates":["АА 1234 ВВ", "not-a-plate", "2923"]}');
+    const analyzer = new PythonFastPlateOcrAnalyzer({
+      pythonPath: "/venv/bin/python",
+      scriptPath: "/project/scripts/detect_plate_crops.py",
+      detectorModelPath: "/project/models/license-plate-detector.pt",
+      ocrModel: "cct-s-v2-global-model",
+      run,
+    });
+
+    await expect(analyzer.analyze(Uint8Array.from([1, 2, 3]))).resolves.toEqual(["AA1234BB", "2923"]);
+    expect(run).toHaveBeenCalledWith(
+      "/venv/bin/python",
+      [
+        "/project/scripts/detect_plate_crops.py",
+        "--model", "/project/models/license-plate-detector.pt",
+        "--reader", "fast-plate-ocr",
+        "--ocr-model", "cct-s-v2-global-model",
+      ],
+      JSON.stringify({ imageBase64: "AQID" }),
+    );
+  });
+
+  it("fails safely when the local reader returns malformed output", async () => {
+    const analyzer = new PythonFastPlateOcrAnalyzer({
+      pythonPath: "python",
+      scriptPath: "detect.py",
+      detectorModelPath: "model.pt",
+      ocrModel: "reader",
+      run: async () => "not-json",
+    });
+
+    await expect(analyzer.analyze(Uint8Array.from([1]))).resolves.toEqual([]);
+  });
+});

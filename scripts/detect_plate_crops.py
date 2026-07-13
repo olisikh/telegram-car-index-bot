@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Detect license plates and return enhanced image crops as JSON on stdout.
+"""Detect license plates and return image crops or local OCR results as JSON on stdout.
 
 Input:  {"imageBase64": "..."} via stdin
-Output: {"crops": [{"imageBase64": "...", "confidence": 0.0, "box": [x1, y1, x2, y2]}]}
+Output with --reader crops: {"crops": [{"imageBase64": "...", "confidence": 0.0, "box": [x1, y1, x2, y2}]}
+Output with --reader fast-plate-ocr: {"plates": ["AA1234BB"]}
 
 Images are decoded and cropped only in memory. This program never writes source
 Telegram media to disk.
@@ -30,6 +31,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True, help="Path to a local Ultralytics plate-detector .pt model")
     parser.add_argument("--confidence", type=float, default=DEFAULT_CONFIDENCE)
+    parser.add_argument("--reader", choices=("crops", "fast-plate-ocr"), default="crops")
+    parser.add_argument("--ocr-model", default="cct-s-v2-global-model")
     return parser.parse_args()
 
 
@@ -71,6 +74,22 @@ def main() -> int:
         confidence = float(box.conf[0])
         xyxy = [float(value) for value in box.xyxy[0].tolist()]
         detections.append((confidence, xyxy))
+
+    if args.reader == "fast-plate-ocr":
+        # Import only for the lightweight-reader strategy so the established crop-only
+        # contract remains usable without this optional dependency.
+        from fast_plate_ocr import LicensePlateRecognizer
+
+        reader = LicensePlateRecognizer(args.ocr_model)
+        plates: list[str] = []
+        for _, xyxy in sorted(detections, reverse=True)[:MAX_CROPS]:
+            crop = crop_plate(image, xyxy)
+            for prediction in reader.run(crop, return_confidence=True):
+                plate = getattr(prediction, "plate", None)
+                if isinstance(plate, str):
+                    plates.append(plate)
+        print(json.dumps({"plates": plates}, separators=(",", ":")))
+        return 0
 
     crops = []
     for confidence, xyxy in sorted(detections, reverse=True)[:MAX_CROPS]:

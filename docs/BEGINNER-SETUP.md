@@ -164,6 +164,24 @@ ollama pull qwen2.5vl:7b
 
 The first installation can take time because it downloads the local AI model. This is normal.
 
+### Optional Flow 3 trial: FastPlateOCR
+
+Do not use this for production indexing until it has been benchmarked in `shadow` mode. It keeps the same local detector but replaces Qwen with a small local ONNX plate reader.
+
+macOS / Linux:
+
+```bash
+.vision-venv/bin/python -m pip install 'fast-plate-ocr[onnx]'
+```
+
+Windows PowerShell:
+
+```powershell
+.\.vision-venv\Scripts\python.exe -m pip install 'fast-plate-ocr[onnx]'
+```
+
+The reader model is downloaded automatically on its first use and is approximately 5 MB. It is designed for a cropped plate, not a full car photo.
+
 ## 5. Fill in the configuration file
 
 Open the file named `.env` in the project folder using a plain-text editor:
@@ -199,6 +217,16 @@ For **Windows**, change only this line:
 ```dotenv
 PLATE_DETECTOR_PYTHON=./.vision-venv/Scripts/python.exe
 ```
+
+To trial Flow 3 safely, set these values temporarily and restart the bot:
+
+```dotenv
+PHOTO_RECOGNITION_MODE=shadow
+PHOTO_RECOGNITION_STRATEGY=detector-fast-ocr
+FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
+```
+
+Do not switch Flow 3 to `index` mode until you have compared exact results on representative service photos.
 
 To allow more than one group or a private test chat, separate IDs with commas:
 

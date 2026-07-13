@@ -22,6 +22,8 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=qwen2.5vl:7b
 OLLAMA_TIMEOUT_MS=60000
 PHOTO_RECOGNITION_STRATEGY=detector-crop
+# Used only when PHOTO_RECOGNITION_STRATEGY=detector-fast-ocr
+FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
 ```
 
 This is the supported production path: local YOLO detector → enlarged in-memory plate crop → local Qwen reader. `full-image` is retained only as a diagnostic fallback; do not select it for a new deployment.
@@ -35,7 +37,7 @@ curl --silent --show-error http://127.0.0.1:11434/api/tags
 
 ### Detector-crop prerequisites
 
-When `PHOTO_RECOGNITION_STRATEGY=detector-crop`, these repository-local artifacts must exist before the LaunchAgent starts:
+When either `PHOTO_RECOGNITION_STRATEGY=detector-crop` or `detector-fast-ocr`, these repository-local artifacts must exist before the LaunchAgent starts:
 
 ```bash
 ./.vision-venv/bin/python
@@ -43,7 +45,17 @@ When `PHOTO_RECOGNITION_STRATEGY=detector-crop`, these repository-local artifact
 ./models/license-plate-detector.pt
 ```
 
-The application validates all three at startup. Recreate them using the commands in [README.md](../README.md#detector-crop-local-dependencies). Keep the Python environment and model out of Git; they are intentionally ignored.
+The application validates these three paths at startup whenever either detector strategy is selected. Recreate them using the commands in [README.md](../README.md#detector-crop-local-dependencies). Keep the Python environment and model out of Git; they are intentionally ignored.
+
+### FastPlateOCR Flow 3 prerequisite
+
+For `detector-fast-ocr`, install the local ONNX reader in the same Python environment:
+
+```bash
+.vision-venv/bin/python -m pip install 'fast-plate-ocr[onnx]'
+```
+
+The first reader invocation downloads an approximately 5 MB model. Test this strategy only with `PHOTO_RECOGNITION_MODE=shadow`; FastPlateOCR's optional region output is not used for Ukrainian/EU acceptance.
 
 ## Recognition rollout procedure
 
@@ -169,8 +181,9 @@ Logs must not contain captions, downloaded image data, full model responses, or 
 4. The group ID is in `ALLOWED_CHAT_IDS`.
 5. The command menu contains `/find`, `/list`, and `/verbose`; no manual indexing command is registered.
 6. `src/polling.ts` requests both `message` and `callback_query` updates.
-7. Ollama is reachable at the configured `OLLAMA_BASE_URL` before enabling `index` mode.
-8. If `PHOTO_RECOGNITION_STRATEGY=detector-crop`, the local detector Python/script/model files pass the startup check.
+7. Ollama is reachable at the configured `OLLAMA_BASE_URL` before enabling `index` mode for an Ollama strategy.
+8. If a detector strategy is selected, the local detector Python/script/model files pass the startup check.
+9. For `detector-fast-ocr`, FastPlateOCR is installed in that Python environment and the strategy remains in `shadow` mode until its benchmark is accepted.
 
 ## Database backup and recovery
 

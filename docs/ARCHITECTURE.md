@@ -2,7 +2,7 @@
 
 ## Purpose and boundaries
 
-The bot maintains a private, chat-scoped vehicle-plate index for allow-listed Telegram **supergroups**. It analyzes incoming photo messages through the production local recognition path: YOLO detection followed by cropped-plate reading with local Qwen. The legacy full-image Ollama strategy remains only for controlled diagnostic comparison or rollback. A plate is saved only after the reader returns a strict candidate and the TypeScript application normalizes and validates it.
+The bot maintains a private, chat-scoped vehicle-plate index for allow-listed Telegram **supergroups**. It analyzes incoming photo messages through the production local recognition path: YOLO detection followed by cropped-plate reading with local Qwen. Flow 3 adds an optional local FastPlateOCR reader after the same detector/crop step for lightweight cross-platform evaluation. The legacy full-image Ollama strategy remains only for controlled diagnostic comparison or rollback. A plate is saved only after the active reader returns a strict candidate and the TypeScript application normalizes and validates it.
 
 The bot is not a general message archive, OCR crawler, or public vehicle-tracking service.
 
@@ -14,7 +14,7 @@ Telegram photo update
   -> allow-listed `message:photo` handler (`src/index.ts`)
   -> largest Telegram PhotoSize downloaded into memory
   -> one-at-a-time queue (`src/serial-queue.ts`)
-  -> recognition strategy (`detector-crop`: local detector → in-memory crop(s) → Qwen; `full-image`: diagnostic fallback)
+  -> recognition strategy (`detector-crop`: local detector → in-memory crop(s) → Qwen; `detector-fast-ocr`: local detector → in-memory crop(s) → FastPlateOCR; `full-image`: diagnostic fallback)
   -> JSON parse, plate normalization, and format validation
   -> shadow observation OR SQLite index (`src/photo-recognition.ts`)
   -> `/find` and `/list` retrieve links from SQLite
@@ -39,8 +39,9 @@ The bot has no manual plate-tagging command. Only native Telegram `message:photo
 | --- | --- | --- |
 | `full-image` | Original photo → local Ollama | Legacy diagnostic fallback; not selected for a new deployment. |
 | `detector-crop` | Original photo → `scripts/detect_plate_crops.py` → up to five enlarged JPEG crops → local `qwen2.5vl:7b` | Supported production path for smaller/distant plates. |
+| `detector-fast-ocr` | Original photo → `scripts/detect_plate_crops.py` → up to five enlarged crops → FastPlateOCR CCT-S v2 ONNX reader | Flow 3 lightweight candidate; keep in shadow mode until a representative benchmark passes. |
 
-`detector-crop` invokes the local YOLO detector through stdin/stdout. Source photos and generated crops exist only in memory; no temporary media files are created. The detector script/model/Python environment are validated at startup whenever this strategy is selected.
+Both detector strategies invoke the local YOLO detector through stdin/stdout. `detector-crop` returns in-memory JPEG crops to the TypeScript Ollama adapter; `detector-fast-ocr` reads those crops inside the same Python invocation and returns candidate strings. Source photos and generated crops exist only in memory; no temporary media files are created. The detector script/model/Python environment are validated at startup whenever either detector strategy is selected.
 
 ## Ollama recognition contract
 

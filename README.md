@@ -54,11 +54,12 @@ Supported formats currently include Ukraine (including all-Latin civilian series
 | Strategy | Flow | Use |
 | --- | --- | --- |
 | `full-image` | Full Telegram photo → local Ollama | Legacy diagnostic fallback for comparison/rollback; not the default for a new deployment. |
-| `detector-crop` | Full photo → local YOLO plate detector → enlarged in-memory crop(s) → local Ollama | Supported production path; recommended for distant/small plates. |
+| `detector-crop` | Full photo → local YOLO plate detector → enlarged in-memory crop(s) → local Ollama | Supported production accuracy-first path; recommended for distant/small plates. |
+| `detector-fast-ocr` | Full photo → local YOLO plate detector → enlarged in-memory crop(s) → local FastPlateOCR ONNX reader | Flow 3 lightweight experiment; use `shadow` mode until benchmarked on representative photos. |
 
-`detector-crop` never writes source photos or crops to disk. The detector receives image bytes on stdin and returns JPEG crops in memory to the TypeScript bot. It checks up to five confident plate regions per photo.
+The detector receives image bytes on stdin and returns JPEG crops in memory to the TypeScript bot. It checks up to five confident plate regions per photo. `detector-fast-ocr` uses the same in-memory detector/crop step, but runs FastPlateOCR inside the local Python process and returns only candidate plate strings; it does not contact Ollama.
 
-The supported production mode is `detector-crop` with `qwen2.5vl:7b`. `full-image` remains available only for controlled diagnostic comparison or rollback after a LaunchAgent restart.
+The supported production mode is `detector-crop` with `qwen2.5vl:7b`. `detector-fast-ocr` is the additive Flow 3 reader experiment: it keeps the same detector/crops while replacing Qwen with a local FastPlateOCR ONNX reader. `full-image` remains available only for controlled diagnostic comparison or rollback after a LaunchAgent restart.
 
 ## Recognition feedback
 
@@ -106,7 +107,25 @@ mkdir -p models
 mv models/best.pt models/license-plate-detector.pt
 ```
 
-The active detector model is 5.9 MiB and has SHA-256 `d06657407970f80f1a12eb9f340661ecd003bbe44ff8feac3d5bc38845f11a94`. It is a locally stored model; it receives source image bytes only in memory.
+### Flow 3: FastPlateOCR local reader
+
+`detector-fast-ocr` is an optional lightweight reader for hardware that cannot comfortably run Qwen. Install it into the same local detector virtual environment:
+
+```bash
+.vision-venv/bin/python -m pip install 'fast-plate-ocr[onnx]'
+```
+
+Then use this only for a shadow benchmark:
+
+```dotenv
+PHOTO_RECOGNITION_MODE=shadow
+PHOTO_RECOGNITION_STRATEGY=detector-fast-ocr
+FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
+```
+
+FastPlateOCR downloads an approximately 5 MB ONNX reader on first use. It is a reader, not a detector: the existing local YOLO crop stage remains mandatory. Its optional region result is ignored; the existing Ukrainian/EU validator remains the authority for acceptance.
+
+Do not switch a live indexing chat to this strategy from one successful photo. Compare exact plate reads against the Qwen path across clear, distant, angled, dark, reflective, multi-car, Ukrainian civilian, and four-digit police photos first.
 
 ## Run locally
 

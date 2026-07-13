@@ -11,6 +11,7 @@ The bot stores only normalized plate data, source-chat scope, Telegram message U
 - `src/ollama-vision.ts` — strict local Ollama reader and plate-output validation.
 - `src/plate-detector.ts` / `scripts/detect_plate_crops.py` — local YOLO detection and in-memory crop transport.
 - `src/detector-crop-analyzer.ts` / `src/recognition-strategy.ts` — recognition strategy composition. `detector-crop` is production; `full-image` is retained only for diagnostic comparison/rollback.
+- `src/fast-plate-ocr-analyzer.ts` — optional Flow 3 local detector + FastPlateOCR adapter; keep it in shadow mode until it passes a representative benchmark.
 - `src/photo-recognition.ts` — temporary in-memory photo processing and shadow/index policy.
 - `src/serial-queue.ts` — single-worker recognition queue that protects the host from concurrent vision jobs.
 - `src/index.ts` — composition root: Telegram handlers, command registration, authorization, and response rendering.
@@ -29,7 +30,7 @@ The bot stores only normalized plate data, source-chat scope, Telegram message U
 3. **Do not persist media bytes or full captions.** Photo bytes may exist only in memory for the duration of a local Ollama request. Keep only the existing compact preview policy. Do not add image hosting, user profiles, broad message logging, or cloud image transfer without explicit approval.
 4. **Keep secrets local.** Never commit `.env`, bot tokens, SQLite data, logs, or Telegram exports. Revoke a token immediately if it appears in a commit, log, or chat.
 5. **Treat recognized plates as untrusted model output.** Normalize and validate every candidate before indexing. Do not loosen formats casually, make unsupported country formats look valid, or index a model explanation/guess.
-6. **Keep the production recognition path explicit.** The supported default is local YOLO detector-crop → local `qwen2.5vl:7b`. Any model swap or crop-quality trade-off requires shadow-mode testing on representative real photos before it can index production records.
+6. **Keep the production recognition path explicit.** The supported default is local YOLO detector-crop → local `qwen2.5vl:7b`. `detector-fast-ocr` is an additive Flow 3 experiment: it keeps the detector but replaces the Qwen reader with local FastPlateOCR. Any model swap or crop-quality trade-off requires shadow-mode testing on representative real photos before it can index production records.
 7. **Require supergroups for source links.** Clickable Telegram message URLs require a supergroup (`-100…` chat ID). A legacy/basic group must be migrated and its new ID added to `ALLOWED_CHAT_IDS` before indexing is enabled.
 
 ## Development workflow
