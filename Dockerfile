@@ -29,7 +29,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     && python3 -m venv /opt/venv
 ENV PATH=/opt/venv/bin:$PATH
 COPY requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip \
+    && pip install --index-url https://download.pytorch.org/whl/cpu torch==2.0.1 torchvision==0.15.2 \
+    && pip install -r requirements.txt
 COPY --from=node-build /app/package.json ./
 COPY --from=node-build /app/node_modules ./node_modules
 COPY --from=node-build /app/dist ./dist
