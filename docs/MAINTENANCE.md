@@ -19,6 +19,7 @@ npm run dev
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=gemma4:latest
 OLLAMA_TIMEOUT_MS=60000
+PHOTO_RECOGNITION_STRATEGY=full-image
 ```
 
 Verify the configured model is local and vision-capable:
@@ -27,6 +28,18 @@ Verify the configured model is local and vision-capable:
 ollama show "$OLLAMA_MODEL"
 curl --silent --show-error http://127.0.0.1:11434/api/tags
 ```
+
+### Detector-crop prerequisites
+
+When `PHOTO_RECOGNITION_STRATEGY=detector-crop`, these repository-local artifacts must exist before the LaunchAgent starts:
+
+```bash
+./.vision-venv/bin/python
+./scripts/detect_plate_crops.py
+./models/license-plate-detector.pt
+```
+
+The application validates all three at startup. Recreate them using the commands in [README.md](../README.md#detector-crop-local-dependencies). Keep the Python environment and model out of Git; they are intentionally ignored.
 
 ## Recognition rollout procedure
 
@@ -153,6 +166,7 @@ Logs must not contain captions, downloaded image data, full model responses, or 
 5. Bot commands include `/find`, `/list`, and `/verbose` after startup; `/car` must not appear.
 6. `src/polling.ts` requests both `message` and `callback_query` updates.
 7. Ollama is reachable at the configured `OLLAMA_BASE_URL` before enabling `index` mode.
+8. If `PHOTO_RECOGNITION_STRATEGY=detector-crop`, the local detector Python/script/model files pass the startup check.
 
 ## Database backup and recovery
 

@@ -43,6 +43,19 @@ Recognition is conservative:
 
 Supported formats currently include Ukraine (including all-Latin civilian series and four-digit National Police blue plates), Poland, Germany, Lithuania, Romania, Slovakia, Hungary, and Czechia. The same validation is used by `/find`.
 
+## Recognition strategies
+
+`PHOTO_RECOGNITION_STRATEGY` selects the reader pipeline independently of whether results are indexed:
+
+| Strategy | Flow | Use |
+| --- | --- | --- |
+| `full-image` | Full Telegram photo → local Ollama | Original prompt-only implementation; useful for comparison and fallback experiments. |
+| `detector-crop` | Full photo → local YOLO plate detector → enlarged in-memory crop(s) → local Ollama | Recommended production mode for distant/small plates. |
+
+`detector-crop` never writes source photos or crops to disk. The detector receives image bytes on stdin and returns JPEG crops in memory to the TypeScript bot. It checks up to five confident plate regions per photo.
+
+The configured production mode is `detector-crop`; changing the value back to `full-image` restores the prior behavior after a LaunchAgent restart.
+
 ## Recognition feedback
 
 Recognition feedback is disabled by default and stored independently for each allowed chat. Control it from that chat:
@@ -62,6 +75,7 @@ The default local configuration is:
 
 ```dotenv
 PHOTO_RECOGNITION_MODE=shadow
+PHOTO_RECOGNITION_STRATEGY=full-image
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=gemma4:latest
 OLLAMA_TIMEOUT_MS=60000
@@ -73,7 +87,22 @@ The model must support image input. Verify it with:
 ollama show gemma4:latest
 ```
 
-The production Mac currently has a local vision-capable `gemma4:latest` model installed. Recognition runs one photo at a time to avoid exhausting the machine’s 16 GB memory.
+The production Mac has local vision-capable `gemma4:latest` and `qwen2.5vl:7b` models installed. The detector-crop production configuration uses `qwen2.5vl:7b`; both strategy and model remain configuration choices. Recognition runs one photo at a time to avoid exhausting the machine’s 16 GB memory.
+
+### Detector-crop local dependencies
+
+`detector-crop` requires a local Python environment and the local Apache-2.0 YOLOv8 plate detector. These are intentionally ignored by Git:
+
+```bash
+python3 -m venv .vision-venv
+.vision-venv/bin/python -m pip install --upgrade pip
+.vision-venv/bin/python -m pip install ultralytics huggingface_hub
+mkdir -p models
+.vision-venv/bin/hf download yasirfaizahmed/license-plate-object-detection best.pt --local-dir models
+mv models/best.pt models/license-plate-detector.pt
+```
+
+The active detector model is 5.9 MiB and has SHA-256 `d06657407970f80f1a12eb9f340661ecd003bbe44ff8feac3d5bc38845f11a94`. It is a locally stored model; it receives source image bytes only in memory.
 
 ## Run locally
 

@@ -2,7 +2,7 @@
 
 ## Purpose and boundaries
 
-The bot maintains a private, chat-scoped vehicle-plate index for an auto-service Telegram group. It analyzes incoming **photo messages only** with a configured local Ollama vision model. A plate is saved only after the model returns a strict candidate and the TypeScript application normalizes and validates it.
+The bot maintains a private, chat-scoped vehicle-plate index for an auto-service Telegram group. It analyzes incoming **photo messages only** with configured local recognition strategies: the original full-image Ollama prompt or a local detector followed by cropped-plate Ollama reading. A plate is saved only after the model returns a strict candidate and the TypeScript application normalizes and validates it.
 
 The bot is not a general message archive, OCR crawler, or public vehicle-tracking service.
 
@@ -14,7 +14,7 @@ Telegram photo update
   -> allow-listed `message:photo` handler (`src/index.ts`)
   -> largest Telegram PhotoSize downloaded into memory
   -> one-at-a-time queue (`src/serial-queue.ts`)
-  -> local Ollama vision request (`src/ollama-vision.ts`)
+  -> recognition strategy (`full-image`: Ollama; `detector-crop`: local detector → in-memory crop(s) → Ollama)
   -> JSON parse, plate normalization, and format validation
   -> shadow observation OR SQLite index (`src/photo-recognition.ts`)
   -> `/find` and `/list` retrieve links from SQLite
@@ -31,6 +31,15 @@ The custom poller requests both `message` and `callback_query` updates. Callback
 | `/start` | Show brief automatic-photo-indexing guidance. | Current allowed chat |
 
 There is deliberately no `/car` command. Text, captions, videos, animations, and documents are not indexing inputs.
+
+## Recognition strategies
+
+| Strategy | Flow | Notes |
+| --- | --- | --- |
+| `full-image` | Original photo → Ollama | Original prompt-only implementation. |
+| `detector-crop` | Original photo → `scripts/detect_plate_crops.py` → up to five enlarged JPEG crops → Ollama | Recommended for smaller/distant plates. |
+
+`detector-crop` invokes the local YOLO detector through stdin/stdout. Source photos and generated crops exist only in memory; no temporary media files are created. The detector script/model/Python environment are validated at startup whenever this strategy is selected.
 
 ## Ollama recognition contract
 
@@ -74,7 +83,7 @@ When enabled, each completion reply contains a direct source-photo link, recogni
 
 ## Queue and reliability model
 
-A `SerialQueue` processes one recognition job at a time. This is intentional: the installed local vision model is approximately 9.6 GB and the host has 16 GB RAM. Incoming updates remain queued at Telegram while a recognition job runs. The long-poll loop awaits each `bot.handleUpdate`, so the bot does not request or process a later update until the active photo has completed or timed out.
+A `SerialQueue` processes one recognition job at a time. This is intentional: the installed local vision models and detector run on a host with 16 GB RAM. Incoming updates remain queued at Telegram while a recognition job runs. The long-poll loop awaits each `bot.handleUpdate`, so the bot does not request or process a later update until the active photo has completed or timed out.
 
 If Telegram download, Ollama inference, JSON parsing, or validation fails, that photo is not indexed. The bot logs only safe operational metadata such as chat/message identifiers, candidate count, mode, and error class/message—not caption text, image bytes, or model response body.
 

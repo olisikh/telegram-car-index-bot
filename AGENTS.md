@@ -8,7 +8,9 @@ The bot stores only normalized plate data, source-chat scope, Telegram message U
 
 ## Repository map
 
-- `src/ollama-vision.ts` — strict local Ollama client and plate-output validation.
+- `src/ollama-vision.ts` — strict local Ollama reader and plate-output validation.
+- `src/plate-detector.ts` / `scripts/detect_plate_crops.py` — local YOLO detection and in-memory crop transport.
+- `src/detector-crop-analyzer.ts` / `src/recognition-strategy.ts` — configurable `full-image` versus `detector-crop` composition.
 - `src/photo-recognition.ts` — temporary in-memory photo processing and shadow/index policy.
 - `src/serial-queue.ts` — single-worker recognition queue that protects the Mac from concurrent vision jobs.
 - `src/index.ts` — composition root: Telegram handlers, command registration, authorization, and response rendering.

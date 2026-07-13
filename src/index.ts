@@ -1,12 +1,16 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import "dotenv/config";
 import { Bot, InlineKeyboard } from "grammy";
 import { Effect } from "effect";
 import { groupCommands } from "./commands.js";
+import { DetectorCropVisionAnalyzer } from "./detector-crop-analyzer.js";
 import { clampPage, findCallbackData, listCallbackData, LIST_PAGE_SIZE, pageCount, parseListCallback } from "./car-list.js";
 import { SqliteIndexStore } from "./database.js";
 import { formatFindResult } from "./find-results.js";
 import { messageLink } from "./message-link.js";
 import { OllamaVisionAnalyzer } from "./ollama-vision.js";
+import { PythonPlateCropDetector } from "./plate-detector.js";
 import { normalizePlate } from "./plates.js";
 import { processPhotoRecognition, type RecognitionMode } from "./photo-recognition.js";
 import {
@@ -15,6 +19,7 @@ import {
   recognitionSuccessFeedback,
   recognitionTimeoutFeedback,
 } from "./recognition-feedback.js";
+import { recognitionStrategyFrom } from "./recognition-strategy.js";
 import { runLongPolling } from "./polling.js";
 import { SerialQueue } from "./serial-queue.js";
 
@@ -35,21 +40,40 @@ if (recognitionModeValue !== "shadow" && recognitionModeValue !== "index") {
   throw new Error("PHOTO_RECOGNITION_MODE must be shadow or index");
 }
 const recognitionMode: RecognitionMode = recognitionModeValue;
+const recognitionStrategy = recognitionStrategyFrom(process.env.PHOTO_RECOGNITION_STRATEGY);
 const ollamaModel = process.env.OLLAMA_MODEL ?? "gemma4:latest";
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
 const ollamaTimeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS ?? "60000");
 if (!Number.isSafeInteger(ollamaTimeoutMs) || ollamaTimeoutMs < 1) {
   throw new Error("OLLAMA_TIMEOUT_MS must be a positive integer");
 }
+const detectorPythonPath = resolve(process.env.PLATE_DETECTOR_PYTHON ?? "./.vision-venv/bin/python");
+const detectorScriptPath = resolve(process.env.PLATE_DETECTOR_SCRIPT ?? "./scripts/detect_plate_crops.py");
+const detectorModelPath = resolve(process.env.PLATE_DETECTOR_MODEL ?? "./models/license-plate-detector.pt");
+if (recognitionStrategy === "detector-crop") {
+  for (const path of [detectorPythonPath, detectorScriptPath, detectorModelPath]) {
+    if (!existsSync(path)) throw new Error(`detector-crop mode requires local file: ${path}`);
+  }
+}
 
 const database = new SqliteIndexStore(process.env.DATABASE_PATH ?? "./data/index.db");
 const bot = new Bot(token);
 const photoQueue = new SerialQueue();
-const visionAnalyzer = new OllamaVisionAnalyzer({
+const fullImageAnalyzer = new OllamaVisionAnalyzer({
   baseUrl: ollamaBaseUrl,
   model: ollamaModel,
   timeoutMs: ollamaTimeoutMs,
 });
+const visionAnalyzer = recognitionStrategy === "detector-crop"
+  ? new DetectorCropVisionAnalyzer(
+    new PythonPlateCropDetector({
+      pythonPath: detectorPythonPath,
+      scriptPath: detectorScriptPath,
+      modelPath: detectorModelPath,
+    }),
+    fullImageAnalyzer,
+  )
+  : fullImageAnalyzer;
 
 const allowed = (chatId: number): boolean => allowedChats.has(String(chatId));
 
@@ -233,5 +257,5 @@ bot.on("callback_query:data", async (ctx) => {
 });
 
 await bot.api.setMyCommands(groupCommands, { scope: { type: "all_group_chats" } });
-console.info(`Bot is running; photo recognition mode=${recognitionMode} model=${ollamaModel}`);
+console.info(`Bot is running; photo recognition mode=${recognitionMode} strategy=${recognitionStrategy} model=${ollamaModel}`);
 await runLongPolling(bot);
