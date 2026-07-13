@@ -4,6 +4,10 @@ A privacy-conscious Telegram bot for allow-listed auto-service groups. It analyz
 
 The bot does not persist downloaded photos, video files, captions, or general chat text. A photo exists only in memory while it is sent to the configured local Ollama endpoint.
 
+## Getting started
+
+If you are setting up the bot on a new Mac, Windows PC, or Linux computer, follow the non-technical [Beginner setup guide](docs/BEGINNER-SETUP.md) first. It covers Telegram setup, local models, first safe test, and keeping the bot running.
+
 ## Usage in the group
 
 Send a photo containing a visible vehicle registration plate. The bot ignores captions and ordinary text.
@@ -138,6 +142,7 @@ npm run dev
 
 ## Documentation
 
+- [Beginner setup guide](docs/BEGINNER-SETUP.md) — non-technical installation and first-run instructions for macOS, Windows, and Linux.
 - [AGENTS.md](AGENTS.md) — development rules, privacy constraints, and Telegram/Ollama pitfalls.
 - [Architecture](docs/ARCHITECTURE.md) — runtime flow, commands, data model, and trust boundaries.
 - [Maintenance runbook](docs/MAINTENANCE.md) — deployment, logging, backups, recovery, and incident response.

@@ -2,6 +2,8 @@
 
 ## Local setup
 
+> For a new non-technical installation on macOS, Windows, or Linux, start with [BEGINNER-SETUP.md](BEGINNER-SETUP.md). This runbook is for ongoing technical maintenance after installation.
+
 ```bash
 cp .env.example .env
 # Set TELEGRAM_BOT_TOKEN and one or more comma-separated ALLOWED_CHAT_IDS.
