@@ -70,6 +70,7 @@ npm run dev
 
 - [AGENTS.md](AGENTS.md) — development rules and safety constraints for contributors/agents.
 - [Architecture](docs/ARCHITECTURE.md) — runtime flow, commands, data model, and privacy boundaries.
+- [Photo OCR plan](docs/PHOTO-OCR-PLAN.md) — proposed automatic plate linking from vehicle and order-document photos.
 - [Maintenance runbook](docs/MAINTENANCE.md) — deployment, logging, backups, recovery, and incident response.
 
 ## Quality checks
