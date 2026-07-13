@@ -4,6 +4,8 @@ interface TelegramUpdateId {
   readonly update_id: number;
 }
 
+export const allowedUpdates = ["message", "callback_query"] as const;
+
 export const nextOffset = (
   currentOffset: number,
   updates: ReadonlyArray<TelegramUpdateId>,
@@ -22,7 +24,7 @@ export const runLongPolling = async (bot: Bot): Promise<never> => {
     const updates = await bot.api.getUpdates({
       offset,
       timeout: 20,
-      allowed_updates: ["message"],
+      allowed_updates: allowedUpdates,
     });
 
     for (const update of updates) {

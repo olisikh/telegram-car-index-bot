@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { nextOffset } from "../src/polling.js";
+import { allowedUpdates, nextOffset } from "../src/polling.js";
 
 describe("nextOffset", () => {
+  it("requests message and callback-query updates", () => {
+    expect(allowedUpdates).toEqual(["message", "callback_query"]);
+  });
+
   it("advances beyond the highest processed update", () => {
     expect(nextOffset(1, [{ update_id: 7 }, { update_id: 9 }])).toBe(10);
   });

@@ -189,6 +189,7 @@ bot.on("callback_query:data", async (ctx) => {
     const plate = normalizePlate(action.plate);
     await ctx.answerCallbackQuery();
     if (!plate) return;
+    await ctx.deleteMessage();
     await ctx.reply(await findReplyText(plate, chat.id), {
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },
