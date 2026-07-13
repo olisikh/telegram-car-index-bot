@@ -17,6 +17,16 @@ export interface MediaGroupMember {
   readonly mediaType: MediaType;
 }
 
+export interface ListedCar {
+  readonly plate: string;
+  readonly lastSeen: string;
+}
+
+export interface CarListPage {
+  readonly cars: ReadonlyArray<ListedCar>;
+  readonly total: number;
+}
+
 export class SqliteIndexStore implements IndexStore {
   private readonly database: Database.Database;
 
@@ -108,6 +118,23 @@ export class SqliteIndexStore implements IndexStore {
       ORDER BY im.created_at DESC
     `).all(plate, chatId) as ReadonlyArray<SearchResult>,
   );
+
+  readonly listCars = (chatId: number, limit: number, offset: number): Effect.Effect<CarListPage> => Effect.sync(() => {
+    const total = (this.database.prepare(`
+      SELECT COUNT(DISTINCT plate) AS total
+      FROM indexed_messages
+      WHERE chat_id = ?
+    `).get(chatId) as { total: number }).total;
+    const cars = this.database.prepare(`
+      SELECT plate, MAX(created_at) AS lastSeen
+      FROM indexed_messages
+      WHERE chat_id = ?
+      GROUP BY plate
+      ORDER BY lastSeen DESC, plate ASC
+      LIMIT ? OFFSET ?
+    `).all(chatId, limit, offset) as ReadonlyArray<ListedCar>;
+    return { cars, total };
+  });
 
   close(): void {
     this.database.close();

@@ -49,6 +49,35 @@ describe("SqliteIndexStore", () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
+  it("lists unique plates newest first within the requested chat", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "car-index-list-"));
+    const path = join(directory, "index.db");
+    const raw = new Database(path);
+    raw.exec(`
+      CREATE TABLE indexed_messages (
+        plate TEXT NOT NULL, chat_id INTEGER NOT NULL, message_url TEXT NOT NULL,
+        message_preview TEXT NOT NULL, created_at TEXT NOT NULL
+      );
+    `);
+    const insert = raw.prepare("INSERT INTO indexed_messages VALUES (?, ?, ?, ?, ?)");
+    insert.run("AA1234BB", -100111, "https://t.me/c/111/1", "old", "2026-07-13 10:00:00");
+    insert.run("KA0001AX", -100111, "https://t.me/c/111/2", "new", "2026-07-13 12:00:00");
+    insert.run("AA1234BB", -100111, "https://t.me/c/111/3", "newest", "2026-07-13 13:00:00");
+    insert.run("BB0001BB", -100222, "https://t.me/c/222/1", "other chat", "2026-07-13 14:00:00");
+    raw.close();
+
+    const store = new SqliteIndexStore(path);
+    await expect(Effect.runPromise(store.listCars(-100111, 10, 0))).resolves.toEqual({
+      total: 2,
+      cars: [
+        { plate: "AA1234BB", lastSeen: "2026-07-13 13:00:00" },
+        { plate: "KA0001AX", lastSeen: "2026-07-13 12:00:00" },
+      ],
+    });
+    store.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
   it("aggregates photo and video members of an indexed album", async () => {
     const store = new SqliteIndexStore(":memory:");
     await Effect.runPromise(store.recordMediaGroupMember({

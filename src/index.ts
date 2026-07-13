@@ -1,8 +1,9 @@
 import "dotenv/config";
-import { Bot } from "grammy";
+import { Bot, InlineKeyboard } from "grammy";
 import { Effect } from "effect";
 import { groupCommands } from "./commands.js";
 import { carCommandPlate } from "./car-command.js";
+import { clampPage, findCallbackData, listCallbackData, LIST_PAGE_SIZE, pageCount, parseListCallback } from "./car-list.js";
 import { indexCarMessage } from "./car-indexing.js";
 import { SqliteIndexStore } from "./database.js";
 import { formatFindResult } from "./find-results.js";
@@ -30,6 +31,37 @@ const allowed = (chatId: number): boolean => allowedChats.has(String(chatId));
 
 const chatUsername = (chat: { username?: string }): string | undefined => chat.username;
 
+const findReplyText = async (plate: string, chatId: number): Promise<string> => {
+  const results = await Effect.runPromise(database.find(plate, chatId));
+  if (results.length === 0) return `Для ${plate} нічого не знайдено.`;
+  const links = results.map((result, index) => formatFindResult(result, index + 1));
+  return `Знайдено ${results.length} повідомлень для ${plate}:\n${links.join("\n")}`;
+};
+
+const listView = async (chatId: number, requestedPage: number): Promise<{
+  readonly text: string;
+  readonly keyboard: InlineKeyboard;
+} | undefined> => {
+  const initial = await Effect.runPromise(database.listCars(chatId, LIST_PAGE_SIZE, requestedPage * LIST_PAGE_SIZE));
+  if (initial.total === 0) return undefined;
+  const page = clampPage(requestedPage, initial.total);
+  const result = page === requestedPage
+    ? initial
+    : await Effect.runPromise(database.listCars(chatId, LIST_PAGE_SIZE, page * LIST_PAGE_SIZE));
+  const pages = pageCount(result.total);
+  const keyboard = new InlineKeyboard();
+  for (const car of result.cars) keyboard.text(car.plate, findCallbackData(car.plate)).row();
+  if (pages > 1) {
+    if (page > 0) keyboard.text("‹", listCallbackData(page - 1));
+    keyboard.text(`${page + 1} / ${pages}`, "noop");
+    if (page < pages - 1) keyboard.text("›", listCallbackData(page + 1));
+  }
+  return {
+    text: `Авто: ${result.total}. Від найновіших до найстаріших:`,
+    keyboard,
+  };
+};
+
 // Receipt telemetry: contains no message text or image data, only update shape.
 bot.use(async (ctx, next) => {
   const message = ctx.update.message;
@@ -46,7 +78,7 @@ bot.use(async (ctx, next) => {
 
 bot.command("start", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  await ctx.reply("Готово. Надішли /car AA1234BB як повідомлення або підпис до фото чи відео.\nПошук: /find AA1234BB");
+  await ctx.reply("Готово. Надішли /car AA1234BB як повідомлення або підпис до фото чи відео.\nПошук: /find AA1234BB · Список: /list");
 });
 
 bot.on(["message:photo", "message:video", "message:animation", "message:document"], async (ctx) => {
@@ -123,6 +155,16 @@ bot.command("car", async (ctx) => {
   await ctx.reply(`✅ Збережено ${plate}`);
 });
 
+bot.command("list", async (ctx) => {
+  if (!allowed(ctx.chat.id)) return;
+  const view = await listView(ctx.chat.id, 0);
+  if (!view) {
+    await ctx.reply("Ще немає проіндексованих авто.");
+    return;
+  }
+  await ctx.reply(view.text, { reply_markup: view.keyboard });
+});
+
 bot.command("find", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
   const plate = normalizePlate(ctx.match);
@@ -130,18 +172,37 @@ bot.command("find", async (ctx) => {
     await ctx.reply("Формат: /find AA1234BB");
     return;
   }
-
-  const results = await Effect.runPromise(database.find(plate, ctx.chat.id));
-  if (results.length === 0) {
-    await ctx.reply(`Для ${plate} нічого не знайдено.`);
-    return;
-  }
-
-  const links = results.map((result, index) => formatFindResult(result, index + 1));
-  await ctx.reply(`Знайдено ${results.length} повідомлень для ${plate}:\n${links.join("\n")}`, {
+  await ctx.reply(await findReplyText(plate, ctx.chat.id), {
     parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
   });
+});
+
+bot.on("callback_query:data", async (ctx) => {
+  const chat = ctx.callbackQuery.message?.chat;
+  const action = parseListCallback(ctx.callbackQuery.data);
+  if (!chat || !allowed(chat.id) || !action) {
+    await ctx.answerCallbackQuery();
+    return;
+  }
+  if (action.kind === "find") {
+    const plate = normalizePlate(action.plate);
+    await ctx.answerCallbackQuery();
+    if (!plate) return;
+    await ctx.reply(await findReplyText(plate, chat.id), {
+      parse_mode: "HTML",
+      link_preview_options: { is_disabled: true },
+    });
+    return;
+  }
+
+  const view = await listView(chat.id, action.page);
+  await ctx.answerCallbackQuery();
+  if (!view) {
+    await ctx.editMessageText("Ще немає проіндексованих авто.");
+    return;
+  }
+  await ctx.editMessageText(view.text, { reply_markup: view.keyboard });
 });
 
 await bot.api.setMyCommands(groupCommands, { scope: { type: "all_group_chats" } });
