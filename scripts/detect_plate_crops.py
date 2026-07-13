@@ -15,6 +15,7 @@ import argparse
 import base64
 import json
 import sys
+from time import perf_counter
 from typing import Any
 
 import cv2
@@ -67,6 +68,7 @@ def main() -> int:
     if image is None:
         raise ValueError("unable to decode image")
 
+    detection_started = perf_counter()
     model = YOLO(args.model)
     result = model.predict(image, imgsz=1280, conf=args.confidence, verbose=False)[0]
     detections = []
@@ -74,27 +76,36 @@ def main() -> int:
         confidence = float(box.conf[0])
         xyxy = [float(value) for value in box.xyxy[0].tolist()]
         detections.append((confidence, xyxy))
+    detection_ms = round((perf_counter() - detection_started) * 1_000)
 
+    selected = sorted(detections, reverse=True)[:MAX_CROPS]
+    cropping_started = perf_counter()
     if args.reader == "fast-plate-ocr":
+        # OpenCV stores images as BGR; FastPlateOCR expects in-memory RGB arrays.
+        prepared_crops = [cv2.cvtColor(crop_plate(image, xyxy), cv2.COLOR_BGR2RGB) for _, xyxy in selected]
+        cropping_ms = round((perf_counter() - cropping_started) * 1_000)
+
         # Import only for the lightweight-reader strategy so the established crop-only
         # contract remains usable without this optional dependency.
+        ocr_started = perf_counter()
         from fast_plate_ocr import LicensePlateRecognizer
 
         reader = LicensePlateRecognizer(args.ocr_model)
         plates: list[str] = []
-        for _, xyxy in sorted(detections, reverse=True)[:MAX_CROPS]:
-            crop = crop_plate(image, xyxy)
-            # OpenCV stores images as BGR; FastPlateOCR expects in-memory RGB arrays.
-            rgb_crop = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
-            for prediction in reader.run(rgb_crop, return_confidence=True):
+        for crop in prepared_crops:
+            for prediction in reader.run(crop, return_confidence=True):
                 plate = getattr(prediction, "plate", None)
                 if isinstance(plate, str):
                     plates.append(plate)
-        print(json.dumps({"plates": plates}, separators=(",", ":")))
+        ocr_ms = round((perf_counter() - ocr_started) * 1_000)
+        print(json.dumps({
+            "plates": plates,
+            "timings": {"detectionMs": detection_ms, "croppingMs": cropping_ms, "ocrMs": ocr_ms},
+        }, separators=(",", ":")))
         return 0
 
     crops = []
-    for confidence, xyxy in sorted(detections, reverse=True)[:MAX_CROPS]:
+    for confidence, xyxy in selected:
         crop = crop_plate(image, xyxy)
         ok, encoded_crop = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, 95])
         if not ok:
@@ -104,8 +115,12 @@ def main() -> int:
             "confidence": round(confidence, 4),
             "box": [round(value, 1) for value in xyxy],
         })
+    cropping_ms = round((perf_counter() - cropping_started) * 1_000)
 
-    print(json.dumps({"crops": crops}, separators=(",", ":")))
+    print(json.dumps({
+        "crops": crops,
+        "timings": {"detectionMs": detection_ms, "croppingMs": cropping_ms},
+    }, separators=(",", ":")))
     return 0
 
 

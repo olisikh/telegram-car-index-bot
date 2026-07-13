@@ -92,10 +92,10 @@ tail -f ~/telegram-car-index-bot/data/bot.out.log
 Expected completion line:
 
 ```text
-photo recognition chat=<id> message=<id> candidates=<n> mode=shadow
+photo recognition chat=<id> message=<id> candidates=<n> mode=shadow detectionMs=<n> croppingMs=<n> ocrMs=<n>
 ```
 
-Compare candidates against the original images in Telegram. Do not treat a successful model response as proven accuracy—measure exact plate reads on representative images.
+With `/verbose on`, the direct reply shows the same stage split: `🕵️‍♂️ Пошук` (detector), `✂️ Обрізання` (crop preparation), and `👁️ OCR` (reader). Compare candidates against the original images in Telegram. Do not treat a successful model response as proven accuracy—measure exact plate reads on representative images.
 
 ### 3. Enable automatic indexing
 

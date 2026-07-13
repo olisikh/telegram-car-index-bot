@@ -70,7 +70,7 @@ Recognition feedback is disabled by default and stored independently for each al
 /verbose off
 ```
 
-With verbose mode on, the bot replies after every photo with a direct source-photo link, recognized plate(s) when available, and the elapsed analysis time. It distinguishes a readable no-result, a timeout, and an unexpected processing crash. Internal error details remain only in the protected host logs.
+With verbose mode on, the bot replies after every photo with a direct source-photo link, recognized plate(s) when available, and the elapsed analysis time. For detector strategies it also breaks the work down into `🕵️‍♂️ Пошук` (detector), `✂️ Обрізання` (crop preparation), and `👁️ OCR` (reader) so the bottleneck is visible. It distinguishes a readable no-result, a timeout, and an unexpected processing crash. Internal error details remain only in the protected host logs.
 
 Use `/verbose on` in your direct-message test chat. Keep busy service groups off unless a reply per image is wanted.
 

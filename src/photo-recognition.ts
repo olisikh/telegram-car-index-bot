@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { indexRecognizedPhotoMessage, type IndexStore } from "./indexing.js";
 import type { VisionAnalyzer } from "./ollama-vision.js";
+import type { TimedRecognition } from "./recognition-timings.js";
 
 export type RecognitionMode = "shadow" | "index";
 
@@ -24,17 +25,19 @@ export interface IncomingPhoto {
 export const processPhotoRecognition = async (
   dependencies: PhotoRecognitionDependencies,
   photo: IncomingPhoto,
-): Promise<ReadonlyArray<string>> => {
+): Promise<TimedRecognition> => {
   const image = await dependencies.download(photo.fileId);
-  const plates = await dependencies.analyze(image);
+  const recognition = dependencies.analyzeTimed
+    ? await dependencies.analyzeTimed(image)
+    : { plates: await dependencies.analyze(image), timings: {} };
   if (dependencies.mode === "index") {
     await Effect.runPromise(indexRecognizedPhotoMessage(dependencies.store, {
       chatId: photo.chatId,
       messageId: photo.messageId,
       chatUsername: photo.chatUsername,
       mediaGroupId: photo.mediaGroupId,
-      plates,
+      plates: recognition.plates,
     }));
   }
-  return plates;
+  return recognition;
 };

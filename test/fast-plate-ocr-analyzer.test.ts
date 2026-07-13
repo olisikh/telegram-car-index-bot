@@ -26,6 +26,24 @@ describe("PythonFastPlateOcrAnalyzer", () => {
     );
   });
 
+  it("returns detector, crop, and OCR timings from the local reader", async () => {
+    const analyzer = new PythonFastPlateOcrAnalyzer({
+      pythonPath: "python",
+      scriptPath: "detect.py",
+      detectorModelPath: "model.pt",
+      ocrModel: "reader",
+      run: async () => JSON.stringify({
+        plates: ["AA1234BB"],
+        timings: { detectionMs: 900, croppingMs: 5, ocrMs: 1_200 },
+      }),
+    });
+
+    await expect(analyzer.analyzeTimed(Uint8Array.from([1]))).resolves.toEqual({
+      plates: ["AA1234BB"],
+      timings: { detectionMs: 900, croppingMs: 5, ocrMs: 1_200 },
+    });
+  });
+
   it("fails safely when the local reader returns malformed output", async () => {
     const analyzer = new PythonFastPlateOcrAnalyzer({
       pythonPath: "python",

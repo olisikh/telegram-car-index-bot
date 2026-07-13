@@ -184,10 +184,11 @@ bot.on("message:photo", async (ctx) => {
     username: chatUsername(ctx.chat),
   });
   try {
-    const plates = await photoQueue.enqueue(async () => processPhotoRecognition({
+    const recognition = await photoQueue.enqueue(async () => processPhotoRecognition({
       store: database,
       download: downloadPhoto,
       analyze: visionAnalyzer.analyze,
+      analyzeTimed: visionAnalyzer.analyzeTimed,
       mode: recognitionMode,
     }, {
       chatId: ctx.chat.id,
@@ -196,16 +197,20 @@ bot.on("message:photo", async (ctx) => {
       chatUsername: chatUsername(ctx.chat),
       mediaGroupId: ctx.message.media_group_id,
     }));
+    const { plates, timings } = recognition;
     const verbose = await Effect.runPromise(database.verboseRecognitionEnabled(ctx.chat.id));
     if (verbose) {
       const feedback = plates.length > 0
-        ? recognitionSuccessFeedback(sourcePhotoUrl, plates, Date.now() - startedAt)
-        : recognitionNoPlateFeedback(sourcePhotoUrl, Date.now() - startedAt);
+        ? recognitionSuccessFeedback(sourcePhotoUrl, plates, Date.now() - startedAt, timings)
+        : recognitionNoPlateFeedback(sourcePhotoUrl, Date.now() - startedAt, timings);
       await ctx.reply(feedback, { parse_mode: "HTML", link_preview_options: { is_disabled: true } });
     }
     console.info(
       `photo recognition chat=${ctx.chat.id} message=${ctx.message.message_id}`
-      + ` candidates=${plates.length} mode=${recognitionMode}`,
+      + ` candidates=${plates.length} mode=${recognitionMode}`
+      + ` detectionMs=${timings.detectionMs ?? "n/a"}`
+      + ` croppingMs=${timings.croppingMs ?? "n/a"}`
+      + ` ocrMs=${timings.ocrMs ?? "n/a"}`,
     );
   } catch (error) {
     const verbose = await Effect.runPromise(database.verboseRecognitionEnabled(ctx.chat.id));

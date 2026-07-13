@@ -15,6 +15,16 @@ describe("recognition feedback", () => {
     );
   });
 
+  it("shows detector, crop, and OCR timings when the analyzer provides them", () => {
+    expect(recognitionSuccessFeedback(photoUrl, ["AE1131YF"], 15_430, {
+      detectionMs: 82,
+      croppingMs: 7,
+      ocrMs: 15_341,
+    })).toBe(
+      '✅ <a href="https://t.me/c/123/42">Фото</a> — ДНЗ: <code>AE1131YF</code>\n⏱ 15.4 с\n🕵️‍♂️ Пошук: 82 мс\n✂️ Обрізання: 7 мс\n👁️ OCR: 15.3 с',
+    );
+  });
+
   it("reports no readable plate with its photo link and elapsed time", () => {
     expect(recognitionNoPlateFeedback(photoUrl, 1_000)).toBe(
       '⚠️ <a href="https://t.me/c/123/42">Фото</a> — ДНЗ не розпізнано.\n⏱ 1.0 с',

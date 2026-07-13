@@ -81,7 +81,7 @@ Verbose status is stored per chat in `chat_recognition_settings` and defaults to
 /verbose off
 ```
 
-When enabled, each completion reply contains a direct source-photo link, recognized plate(s) where available, the outcome (no plate, timeout, or crash), and elapsed time. It intentionally does not disclose raw model output or internal exception data.
+When enabled, each completion reply contains a direct source-photo link, recognized plate(s) where available, the outcome (no plate, timeout, or crash), and elapsed time. Detector strategies additionally show `🕵️‍♂️ Пошук` (detection), `✂️ Обрізання` (crop preparation), and `👁️ OCR` (reader) stage durations. It intentionally does not disclose raw model output or internal exception data.
 
 ## Queue and reliability model
 

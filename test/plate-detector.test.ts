@@ -21,6 +21,23 @@ describe("PythonPlateCropDetector", () => {
     );
   });
 
+  it("returns detector and crop durations from the local pipeline", async () => {
+    const detector = new PythonPlateCropDetector({
+      pythonPath: "python",
+      scriptPath: "detect.py",
+      modelPath: "model.pt",
+      run: async () => JSON.stringify({
+        crops: [{ imageBase64: Buffer.from([4]).toString("base64") }],
+        timings: { detectionMs: 82, croppingMs: 7 },
+      }),
+    });
+
+    await expect(detector.detectTimed(Uint8Array.from([1]))).resolves.toEqual({
+      crops: [Uint8Array.from([4])],
+      timings: { detectionMs: 82, croppingMs: 7 },
+    });
+  });
+
   it("rejects malformed detector output", async () => {
     const detector = new PythonPlateCropDetector({
       pythonPath: "python", scriptPath: "detect.py", modelPath: "model.pt",

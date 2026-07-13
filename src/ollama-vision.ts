@@ -1,7 +1,9 @@
 import { normalizePlate } from "./plates.js";
+import type { TimedRecognition } from "./recognition-timings.js";
 
 export interface VisionAnalyzer {
   readonly analyze: (image: Uint8Array) => Promise<ReadonlyArray<string>>;
+  readonly analyzeTimed?: (image: Uint8Array) => Promise<TimedRecognition>;
 }
 
 export interface OllamaVisionOptions {
@@ -91,5 +93,11 @@ export class OllamaVisionAnalyzer implements VisionAnalyzer {
     const remainingMs = this.options.timeoutMs - (Date.now() - startedAt);
     if (remainingMs < 1) return [];
     return this.analyzePrompt(POLICE_PLATE_PROMPT, image, remainingMs);
+  };
+
+  readonly analyzeTimed = async (image: Uint8Array): Promise<TimedRecognition> => {
+    const startedAt = performance.now();
+    const plates = await this.analyze(image);
+    return { plates, timings: { ocrMs: performance.now() - startedAt } };
   };
 }

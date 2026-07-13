@@ -17,9 +17,10 @@ describe("processPhotoRecognition", () => {
     const download = vi.fn().mockResolvedValue(Uint8Array.from([1, 2, 3]));
     const analyze = vi.fn().mockResolvedValue(["AA1234BB", "KA0001AX"]);
 
-    await expect(processPhotoRecognition({ store, download, analyze, mode: "index" }, photo)).resolves.toEqual([
-      "AA1234BB", "KA0001AX",
-    ]);
+    await expect(processPhotoRecognition({ store, download, analyze, mode: "index" }, photo)).resolves.toEqual({
+      plates: ["AA1234BB", "KA0001AX"],
+      timings: {},
+    });
     expect(download).toHaveBeenCalledWith("largest-photo-file");
     expect(analyze).toHaveBeenCalledWith(Uint8Array.from([1, 2, 3]));
     expect(saved).toEqual([
@@ -37,7 +38,7 @@ describe("processPhotoRecognition", () => {
       download: async () => Uint8Array.from([1]),
       analyze: async () => ["AA1234BB"],
       mode: "shadow",
-    }, photo)).resolves.toEqual(["AA1234BB"]);
+    }, photo)).resolves.toEqual({ plates: ["AA1234BB"], timings: {} });
     expect(save).not.toHaveBeenCalled();
   });
 });

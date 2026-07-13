@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { recognizedPlates, type VisionAnalyzer } from "./ollama-vision.js";
+import type { RecognitionTimings, TimedRecognition } from "./recognition-timings.js";
 
 type ReaderRunner = (command: string, args: ReadonlyArray<string>, input: string, timeoutMs: number) => Promise<string>;
 
@@ -16,6 +17,26 @@ const timeoutError = (): Error => {
   const error = new Error("local FastPlateOCR reader timed out");
   error.name = "TimeoutError";
   return error;
+};
+
+const duration = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
+
+const readerTimings = (output: string): RecognitionTimings => {
+  try {
+    const parsed: unknown = JSON.parse(output);
+    const timings = parsed && typeof parsed === "object" ? (parsed as { timings?: unknown }).timings : undefined;
+    const record = timings && typeof timings === "object"
+      ? timings as { detectionMs?: unknown; croppingMs?: unknown; ocrMs?: unknown }
+      : {};
+    return {
+      detectionMs: duration(record.detectionMs),
+      croppingMs: duration(record.croppingMs),
+      ocrMs: duration(record.ocrMs),
+    };
+  } catch {
+    return {};
+  }
 };
 
 export const runReaderProcess: ReaderRunner = (command, args, input, timeoutMs) => new Promise((resolve, reject) => {
@@ -56,7 +77,9 @@ export class PythonFastPlateOcrAnalyzer implements VisionAnalyzer {
     this.run = options.run ?? runReaderProcess;
   }
 
-  readonly analyze = async (image: Uint8Array): Promise<ReadonlyArray<string>> => {
+  readonly analyze = async (image: Uint8Array): Promise<ReadonlyArray<string>> => (await this.analyzeTimed(image)).plates;
+
+  readonly analyzeTimed = async (image: Uint8Array): Promise<TimedRecognition> => {
     const output = await this.run(
       this.options.pythonPath,
       [
@@ -68,6 +91,6 @@ export class PythonFastPlateOcrAnalyzer implements VisionAnalyzer {
       JSON.stringify({ imageBase64: Buffer.from(image).toString("base64") }),
       this.options.timeoutMs ?? 60_000,
     );
-    return recognizedPlates(output);
+    return { plates: recognizedPlates(output), timings: readerTimings(output) };
   };
 }
