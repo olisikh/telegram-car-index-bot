@@ -1,0 +1,11 @@
+.git
+.github
+.env
+node_modules
+.vision-venv
+models
+data
+dist
+coverage
+backups
+*.log

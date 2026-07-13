@@ -5,6 +5,6 @@ export default tseslint.config(
   eslint.configs.recommended,
   tseslint.configs.recommended,
   {
-    ignores: ["node_modules", ".vision-venv", "models", "data", "coverage"],
+    ignores: ["node_modules", ".vision-venv", "models", "data", "dist", "coverage"],
   },
 );

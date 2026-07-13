@@ -93,6 +93,7 @@ For development: `npm run dev`.
 - [Beginner setup guide](docs/BEGINNER-SETUP.md)
 - [AGENTS.md](AGENTS.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Docker deployment](docs/DOCKER.md)
 - [Maintenance runbook](docs/MAINTENANCE.md)
 
 ## Quality checks

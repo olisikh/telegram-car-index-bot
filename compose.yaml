@@ -1,0 +1,18 @@
+services:
+  bot:
+    image: ${BOT_IMAGE:-ghcr.io/olisikh/telegram-car-index-bot:latest}
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /app/data/index.db
+      PLATE_DETECTOR_PYTHON: /opt/venv/bin/python
+      PLATE_DETECTOR_SCRIPT: /app/scripts/detect_and_read_plates.py
+      PLATE_DETECTOR_MODEL: /app/models/license-plate-detector.pt
+    volumes:
+      - car-index-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  car-index-data:
