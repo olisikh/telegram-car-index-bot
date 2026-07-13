@@ -6,7 +6,9 @@ const LOOKALIKES: Record<string, string> = {
 // Standard civilian plates, entered as one contiguous token. These patterns are
 // intentionally country-specific rather than a permissive generic EU regex.
 const PLATE_FORMATS: Record<string, RegExp> = {
-  UA: /^[ABCEHIKMOPTX]{2}\d{4}[ABCEHIKMOPTX]{2}$/,
+  // Current Ukrainian civilian series can be written entirely with Latin letters.
+  // Keep Cyrillic lookalike normalization above for legacy physical plates.
+  UA: /^[A-Z]{2}\d{4}[A-Z]{2}$/,
   PL: /^[A-Z]{2,3}[A-Z0-9]{4,5}$/,
   DE: /^[A-Z]{2,5}\d{1,4}$/,
   LT: /^[A-Z]{3}\d{3}$/,

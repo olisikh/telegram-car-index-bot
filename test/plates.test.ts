@@ -6,6 +6,10 @@ describe("normalizePlate", () => {
     expect(normalizePlate("аА1234вВ")).toBe("AA1234BB");
   });
 
+  it("accepts current Ukrainian all-Latin registration series", () => {
+    expect(normalizePlate("AE1131YF")).toBe("AE1131YF");
+  });
+
   it("rejects plate values containing separators or spaces", () => {
     expect(normalizePlate("AA 1234 BB")).toBeUndefined();
     expect(normalizePlate("AA-1234-BB")).toBeUndefined();
