@@ -47,8 +47,12 @@ if (recognitionModeValue !== "shadow" && recognitionModeValue !== "index") {
 const recognitionMode: RecognitionMode = recognitionModeValue;
 const fastPlateOcrModel = process.env.FAST_PLATE_OCR_MODEL ?? "cct-s-v2-global-model";
 const recognitionTimeoutMs = Number(process.env.PHOTO_RECOGNITION_TIMEOUT_MS ?? "60000");
+const recoveryAttempts = Number(process.env.PHOTO_RECOGNITION_RECOVERY_ATTEMPTS ?? "2");
 if (!Number.isSafeInteger(recognitionTimeoutMs) || recognitionTimeoutMs < 1) {
   throw new Error("PHOTO_RECOGNITION_TIMEOUT_MS must be a positive integer");
+}
+if (!Number.isSafeInteger(recoveryAttempts) || recoveryAttempts < 0 || recoveryAttempts > 2) {
+  throw new Error("PHOTO_RECOGNITION_RECOVERY_ATTEMPTS must be an integer from 0 to 2");
 }
 const detectorPythonPath = resolve(process.env.PLATE_DETECTOR_PYTHON ?? "./.vision-venv/bin/python");
 const detectorScriptPath = resolve(process.env.PLATE_DETECTOR_SCRIPT ?? "./scripts/detect_and_read_plates.py");
@@ -66,6 +70,7 @@ const visionAnalyzer = new PythonFastPlateOcrAnalyzer({
   detectorModelPath,
   ocrModel: fastPlateOcrModel,
   timeoutMs: recognitionTimeoutMs,
+  recoveryAttempts,
 });
 const activeReader = `fast-plate-ocr:${fastPlateOcrModel}`;
 

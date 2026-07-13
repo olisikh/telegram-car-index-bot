@@ -25,23 +25,29 @@ from ultralytics import YOLO
 MAX_INPUT_BYTES = 20 * 1024 * 1024
 DEFAULT_CONFIDENCE = 0.25
 MAX_CROPS = 5
+PROFILES = {
+    "standard": (DEFAULT_CONFIDENCE, 0.15, 0.45, 4, False),
+    "wide": (0.15, 0.25, 0.70, 5, False),
+    "enhanced": (0.10, 0.35, 0.90, 6, True),
+}
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True, help="Path to a local Ultralytics plate-detector .pt model")
     parser.add_argument("--confidence", type=float, default=DEFAULT_CONFIDENCE)
+    parser.add_argument("--profile", choices=PROFILES, default="standard")
     parser.add_argument("--ocr-model", default="cct-s-v2-global-model")
     return parser.parse_args()
 
 
-def crop_plate(image: np.ndarray, box: list[float]) -> np.ndarray:
+def crop_plate(image: np.ndarray, box: list[float], pad_x_ratio: float, pad_y_ratio: float, scale: int, enhance: bool) -> np.ndarray:
     x1, y1, x2, y2 = box
     height, width = image.shape[:2]
     plate_width = x2 - x1
     plate_height = y2 - y1
-    pad_x = plate_width * 0.15
-    pad_y = plate_height * 0.45
+    pad_x = plate_width * pad_x_ratio
+    pad_y = plate_height * pad_y_ratio
     left = max(0, int(x1 - pad_x))
     top = max(0, int(y1 - pad_y))
     right = min(width, int(x2 + pad_x))
@@ -49,7 +55,13 @@ def crop_plate(image: np.ndarray, box: list[float]) -> np.ndarray:
     crop = image[top:bottom, left:right]
     if crop.size == 0:
         raise ValueError("detector produced an empty crop")
-    return cv2.resize(crop, None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC)
+    resized = cv2.resize(crop, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+    if not enhance:
+        return resized
+    lab = cv2.cvtColor(resized, cv2.COLOR_BGR2LAB)
+    lightness, a_channel, b_channel = cv2.split(lab)
+    enhanced = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(lightness)
+    return cv2.cvtColor(cv2.merge((enhanced, a_channel, b_channel)), cv2.COLOR_LAB2BGR)
 
 
 def main() -> int:
@@ -65,9 +77,10 @@ def main() -> int:
     if image is None:
         raise ValueError("unable to decode image")
 
+    confidence, pad_x_ratio, pad_y_ratio, scale, enhance = PROFILES[args.profile]
     detection_started = perf_counter()
     model = YOLO(args.model)
-    result = model.predict(image, imgsz=1280, conf=args.confidence, verbose=False)[0]
+    result = model.predict(image, imgsz=1280, conf=min(args.confidence, confidence), verbose=False)[0]
     detections = [
         (float(box.conf[0]), [float(value) for value in box.xyxy[0].tolist()])
         for box in result.boxes
@@ -75,7 +88,10 @@ def main() -> int:
     detection_ms = round((perf_counter() - detection_started) * 1_000)
 
     cropping_started = perf_counter()
-    crops = [cv2.cvtColor(crop_plate(image, box), cv2.COLOR_BGR2RGB) for _, box in sorted(detections, reverse=True)[:MAX_CROPS]]
+    crops = [
+        cv2.cvtColor(crop_plate(image, box, pad_x_ratio, pad_y_ratio, scale, enhance), cv2.COLOR_BGR2RGB)
+        for _, box in sorted(detections, reverse=True)[:MAX_CROPS]
+    ]
     cropping_ms = round((perf_counter() - cropping_started) * 1_000)
 
     ocr_started = perf_counter()
@@ -91,6 +107,7 @@ def main() -> int:
     ocr_ms = round((perf_counter() - ocr_started) * 1_000)
     print(json.dumps({
         "plates": plates,
+        "detections": len(detections),
         "timings": {"detectionMs": detection_ms, "croppingMs": cropping_ms, "ocrMs": ocr_ms},
     }, separators=(",", ":")))
     return 0

@@ -44,7 +44,7 @@ PLATE_DETECTOR_SCRIPT=./scripts/detect_and_read_plates.py
 PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 ```
 
-`shadow` performs no database writes. `index` stores only normalized, validated plates and source-message metadata. The detector Python executable, script, and detector model are mandatory at startup.
+`shadow` performs no database writes. `index` stores only normalized, validated plates and source-message metadata. When the standard profile finds no detector crop, the bot silently runs a wider lower-confidence pass and an enhanced larger-crop pass. A recovered plate is accepted only when both recovery passes agree; normal detections never receive a guess-based retry. All passes share the same overall timeout. The detector Python executable, script, and detector model are mandatory at startup.
 
 ## Validation and feedback
 
