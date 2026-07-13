@@ -29,19 +29,11 @@ git clone https://github.com/olisikh/telegram-car-index-bot.git
 cd telegram-car-index-bot
 ```
 
-## 3. Install prerequisites
+## 3. Choose Docker on Windows (recommended)
 
-Install Node.js 22+, Python 3.11+, and Git.
+For a Windows laptop, use the one-image Docker route in [DOCKER.md](DOCKER.md). It needs only Docker Desktop with its WSL 2 Linux backend; it bundles Node.js, Python, YOLO, FastPlateOCR, and both model files. Do not follow the native Node/Python instructions below unless you specifically need a developer setup.
 
-```bash
-node --version
-npm --version
-python3 --version
-```
-
-On Windows use `py --version` if `python3` is unavailable.
-
-## 4. Install the local recognition stack
+## 4. Native development prerequisites
 
 ### macOS / Linux
 
