@@ -1,6 +1,6 @@
 # Telegram car index bot
 
-Indexes Telegram **photo messages** whose captions contain Ukrainian vehicle registration numbers, then returns links to the original messages.
+A privacy-conscious Telegram bot for indexing explicitly tagged vehicle media/messages in an allow-listed group and linking users back to the original message.
 
 ## Usage in the group
 
@@ -57,14 +57,20 @@ npm run dev
 2. Add the bot to the target **supergroup**.
 3. In BotFather, disable **Group Privacy** (`/setprivacy` → Disable), so photo captions reach the bot.
 4. Get the numeric chat ID with a utility such as [@RawDataBot](https://t.me/RawDataBot), set `ALLOWED_CHAT_IDS`, then start the bot.
-5. Use photo captions in the agreed format (`#AA1234BB`) and `/find AA1234BB`.
+5. Index with `/car AA1234BB` as a message or photo/video caption; use `/find AA1234BB` or `/list` to retrieve records.
 
 ## Operational notes
 
 - The bot indexes only messages it receives after it is added; it does not backfill group history.
 - Direct links for private groups work only for people who are members of that group.
-- `ALLOWED_CHAT_IDS` should always be set in production.
+- `ALLOWED_CHAT_IDS` is required at startup; never run the bot without it.
 - `data/index.db` is the durable index; back it up securely. Do not expose it or the `.env` file.
+
+## Documentation
+
+- [AGENTS.md](AGENTS.md) — development rules and safety constraints for contributors/agents.
+- [Architecture](docs/ARCHITECTURE.md) — runtime flow, commands, data model, and privacy boundaries.
+- [Maintenance runbook](docs/MAINTENANCE.md) — deployment, logging, backups, recovery, and incident response.
 
 ## Quality checks
 
