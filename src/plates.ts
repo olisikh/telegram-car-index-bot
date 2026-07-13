@@ -1,7 +1,9 @@
-const LOOKALIKES: Record<string, string> = {
+export const LOOKALIKES: Record<string, string> = {
   А: "A", В: "B", С: "C", Е: "E", Н: "H", І: "I", К: "K",
   М: "M", О: "O", Р: "P", Т: "T", Х: "X",
 };
+
+const LOOKALIKE_PATTERN = /[АВСЕНІКМОРТХ]/gu;
 
 // Standard civilian plates, entered as one contiguous token. These patterns are
 // intentionally country-specific rather than a permissive generic EU regex.
@@ -25,7 +27,7 @@ const CANDIDATE = /(?<![A-ZА-ЯІЇЄҐ0-9])([A-ZА-ЯІЇЄҐ]{2}\d{4}[A-ZА-�
 export const normalizePlate = (value: string): string | undefined => {
   const normalized = value
     .toUpperCase()
-    .replace(/[АВСЕНІКМОРТХ]/gu, (character) => LOOKALIKES[character] ?? character);
+    .replace(LOOKALIKE_PATTERN, (character) => LOOKALIKES[character] ?? character);
 
   return Object.values(PLATE_FORMATS).some((format) => format.test(normalized))
     ? normalized

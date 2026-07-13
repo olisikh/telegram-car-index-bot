@@ -56,6 +56,7 @@ export class SqliteIndexStore implements IndexStore {
         chat_id INTEGER PRIMARY KEY,
         verbose INTEGER NOT NULL DEFAULT 0 CHECK (verbose IN (0, 1))
       );
+      CREATE VIRTUAL TABLE IF NOT EXISTS plate_fts USING fts5(plate, tokenize='trigram');
     `);
     const columns = this.database.prepare("PRAGMA table_info(indexed_messages)").all() as Array<{ name: string }>;
     if (!columns.some((column) => column.name === "chat_id")) {
@@ -84,6 +85,8 @@ export class SqliteIndexStore implements IndexStore {
     this.database.exec(`
       CREATE INDEX IF NOT EXISTS indexed_messages_plate_chat
       ON indexed_messages(plate, chat_id);
+      CREATE INDEX IF NOT EXISTS indexed_messages_plate_chat_created
+      ON indexed_messages(plate, chat_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS media_group_members_group
       ON media_group_members(chat_id, media_group_id);
     `);
@@ -110,6 +113,7 @@ export class SqliteIndexStore implements IndexStore {
       VALUES (@plate, @chatId, @messageUrl, @messagePreview, @mediaType, @mediaGroupId)
       ON CONFLICT DO NOTHING
     `).run({ ...record, mediaType: record.mediaType ?? null, mediaGroupId: record.mediaGroupId ?? null });
+    this.database.prepare("INSERT INTO plate_fts (plate) VALUES (?)").run(record.plate);
   });
 
   readonly recordMediaGroupMember = (member: MediaGroupMember): Effect.Effect<void> => Effect.sync(() => {
@@ -137,6 +141,44 @@ export class SqliteIndexStore implements IndexStore {
       ORDER BY im.created_at DESC
     `).all(plate, chatId) as ReadonlyArray<SearchResult>,
   );
+
+  readonly searchPlates = (query: string, chatId: number): Effect.Effect<ReadonlyArray<SearchResult>> => Effect.sync(() => {
+    const exact = this.database.prepare(`
+      SELECT im.plate, im.chat_id AS chatId, im.message_url AS messageUrl,
+             im.message_preview AS messagePreview, im.media_type AS mediaType,
+             im.media_group_id AS mediaGroupId, im.created_at AS createdAt,
+             CASE WHEN im.media_group_id IS NULL THEN im.media_type
+               ELSE (
+                 SELECT group_concat(DISTINCT member.media_type)
+                 FROM media_group_members AS member
+                 WHERE member.chat_id = im.chat_id AND member.media_group_id = im.media_group_id
+               )
+             END AS mediaTypes
+      FROM indexed_messages AS im
+      WHERE im.plate = ? AND im.chat_id = ?
+      ORDER BY im.created_at DESC
+    `).all(query, chatId) as ReadonlyArray<SearchResult>;
+    if (exact.length > 0) return exact;
+
+    return this.database.prepare(`
+      SELECT im.plate, im.chat_id AS chatId, im.message_url AS messageUrl,
+             im.message_preview AS messagePreview, im.media_type AS mediaType,
+             im.media_group_id AS mediaGroupId, im.created_at AS createdAt,
+             CASE WHEN im.media_group_id IS NULL THEN im.media_type
+               ELSE (
+                 SELECT group_concat(DISTINCT member.media_type)
+                 FROM media_group_members AS member
+                 WHERE member.chat_id = im.chat_id AND member.media_group_id = im.media_group_id
+               )
+             END AS mediaTypes
+      FROM indexed_messages AS im
+      WHERE im.plate IN (
+        SELECT DISTINCT plate FROM plate_fts WHERE plate_fts MATCH ?
+      ) AND im.chat_id = ?
+      ORDER BY im.created_at DESC
+      LIMIT 50
+    `).all(query.replace(/"/gu, '""'), chatId) as ReadonlyArray<SearchResult>;
+  });
 
   readonly listCars = (chatId: number, limit: number, offset: number): Effect.Effect<CarListPage> => Effect.sync(() => {
     const total = (this.database.prepare(`

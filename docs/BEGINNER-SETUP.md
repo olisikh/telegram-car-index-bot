@@ -285,10 +285,14 @@ Use these commands in the group:
 
 ```text
 /find AA1234BB
+/find 653
+/find AX6
 /list
 /verbose on
 /verbose off
 ```
+
+`/find` accepts a complete plate or any fragment of at least 3 characters.
 
 ## Keep the bot running
 

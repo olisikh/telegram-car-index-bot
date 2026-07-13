@@ -13,8 +13,13 @@ import { formatFindResult } from "./find-results.js";
 import { messageLink } from "./message-link.js";
 import { OllamaVisionAnalyzer } from "./ollama-vision.js";
 import { PythonPlateCropDetector } from "./plate-detector.js";
-import { normalizePlate } from "./plates.js";
+import { LOOKALIKES } from "./plates.js";
 import { processPhotoRecognition, type RecognitionMode } from "./photo-recognition.js";
+
+const normalizeFindQuery = (query: string): string => query
+  .toUpperCase()
+  .replace(/[АВСЕНІКМОРТХ]/gu, (character) => LOOKALIKES[character] ?? character)
+  .replace(/\s+/gu, "");
 import {
   recognitionCrashFeedback,
   recognitionNoPlateFeedback,
@@ -96,11 +101,17 @@ const allowed = (chatId: number): boolean => allowedChats.has(String(chatId));
 
 const chatUsername = (chat: { username?: string }): string | undefined => chat.username;
 
-const findReplyText = async (plate: string, chatId: number): Promise<string> => {
-  const results = await Effect.runPromise(database.find(plate, chatId));
-  if (results.length === 0) return `Для ${plate} нічого не знайдено.`;
+const findReplyText = async (query: string, chatId: number): Promise<string> => {
+  const normalizedQuery = normalizeFindQuery(query);
+
+  if (normalizedQuery.length < 3) {
+    return "Пошук за номером: введіть щонайменше 3 символи.";
+  }
+
+  const results = await Effect.runPromise(database.searchPlates(normalizedQuery, chatId));
+  if (results.length === 0) return `Для ${normalizedQuery} нічого не знайдено.`;
   const links = results.map((result, index) => formatFindResult(result, index + 1));
-  return `Знайдено ${results.length} повідомлень для ${plate}:\n${links.join("\n")}`;
+  return `Знайдено ${results.length} повідомлень для ${normalizedQuery}:\n${links.join("\n")}`;
 };
 
 const listView = async (chatId: number, requestedPage: number): Promise<{
@@ -239,12 +250,12 @@ bot.command("list", async (ctx) => {
 
 bot.command("find", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  const plate = normalizePlate(ctx.match);
-  if (!plate) {
-    await ctx.reply("Формат: /find AA1234BB");
+  const query = ctx.match.trim();
+  if (query.length < 3) {
+    await ctx.reply("Пошук за номером: введіть щонайменше 3 символи.");
     return;
   }
-  await ctx.reply(await findReplyText(plate, ctx.chat.id), {
+  await ctx.reply(await findReplyText(query, ctx.chat.id), {
     parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
   });
@@ -258,11 +269,11 @@ bot.on("callback_query:data", async (ctx) => {
     return;
   }
   if (action.kind === "find") {
-    const plate = normalizePlate(action.plate);
+    const query = normalizeFindQuery(action.plate);
     await ctx.answerCallbackQuery();
-    if (!plate) return;
+    if (query.length < 3) return;
     await ctx.deleteMessage();
-    await ctx.reply(await findReplyText(plate, chat.id), {
+    await ctx.reply(await findReplyText(query, chat.id), {
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },
     });

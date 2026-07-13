@@ -12,11 +12,15 @@ If you are setting up the bot on a new Mac, Windows PC, or Linux computer, follo
 
 Send a photo containing a visible vehicle registration plate. The bot ignores captions and ordinary text.
 
-Search an indexed plate:
+Search an indexed plate or a 3+ character fragment of a plate:
 
 ```text
 /find AA1234BB
+/find 653
+/find AX6
 ```
+
+The first example looks for the exact plate; shorter queries use a full-text plate index to match any substring of stored plates. Results are always scoped to the current chat.
 
 Browse distinct indexed cars, newest mention first:
 
