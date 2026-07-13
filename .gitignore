@@ -4,3 +4,5 @@ models/
 data/
 .env
 coverage/
+
+dist/
