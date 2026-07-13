@@ -6,6 +6,7 @@ import { carCommandPlate } from "./car-command.js";
 import { indexCarMessage } from "./car-indexing.js";
 import { SqliteIndexStore } from "./database.js";
 import { formatFindResult } from "./find-results.js";
+import { mediaTypeFromMessage } from "./message-media-type.js";
 import { normalizePlate } from "./plates.js";
 import { runLongPolling } from "./polling.js";
 import { indexTaggedMediaReply } from "./tagged-photo.js";
@@ -35,7 +36,8 @@ bot.use(async (ctx, next) => {
   if (message) {
     console.info(
       `received chat=${message.chat.id} message=${message.message_id}`
-      + ` photo=${"photo" in message} caption=${"caption" in message}`
+      + ` photo=${"photo" in message} video=${"video" in message} animation=${"animation" in message}`
+      + ` document=${"document" in message} caption=${"caption" in message}`
       + ` text=${"text" in message} reply=${message.reply_to_message?.message_id ?? "-"}`,
     );
   }
@@ -47,9 +49,10 @@ bot.command("start", async (ctx) => {
   await ctx.reply("Готово. Надішли /car AA1234BB як повідомлення або підпис до фото чи відео.\nПошук: /find AA1234BB");
 });
 
-bot.on(["message:photo", "message:video"], async (ctx) => {
+bot.on(["message:photo", "message:video", "message:animation", "message:document"], async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  const mediaType = "photo" in ctx.message ? "photo" : "video";
+  const mediaType = mediaTypeFromMessage(ctx.message);
+  if (!mediaType) return;
   const mediaGroupId = ctx.message.media_group_id;
   if (mediaGroupId) {
     await Effect.runPromise(database.recordMediaGroupMember({

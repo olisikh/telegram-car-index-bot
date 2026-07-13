@@ -4,7 +4,7 @@ Indexes Telegram **photo messages** whose captions contain Ukrainian vehicle reg
 
 ## Usage in the group
 
-Send a `/car` command as a regular message or as a photo/video caption:
+Send a `/car` command as a regular message or as a photo/video caption. Native videos, animated videos, and videos sent as files are recognized:
 
 ```text
 /car AA1234BB
