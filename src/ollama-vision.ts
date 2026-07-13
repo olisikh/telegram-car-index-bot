@@ -11,9 +11,12 @@ export interface OllamaVisionOptions {
   readonly fetcher?: typeof fetch;
 }
 
-const PLATE_PROMPT = `Inspect this image for vehicle registration plates.
+const PLATE_PROMPT = `Inspect every visible vehicle for registration plates. Do not stop at an overview: closely inspect the front and rear plate regions of each vehicle before deciding there is no readable plate.
 Return JSON only in exactly this shape: {"plates":["AA1234BB"]}.
-Include every plate only when every character is clearly visible. Never guess, infer, or complete unreadable text. Return {"plates":[]} when no plate is clearly readable. Do not return explanations or markdown.`;
+Include every plate only when every character is clearly visible. For a vehicle marked "ПОЛІЦІЯ", closely inspect its blue front/rear special plate; Ukrainian National Police plates use exactly four digits. Include that four-digit identifier when it is clearly visible, but do not treat other four-digit text as a plate. Never guess, infer, or complete unreadable text. Return {"plates":[]} when no plate is clearly readable. Do not return explanations or markdown.`;
+
+const POLICE_PLATE_PROMPT = `Carefully determine whether a vehicle has visible Ukrainian National Police markings or a blue Ukrainian police plate. Only if you can visibly confirm that, inspect its blue front/rear license plate and return its exactly four visible digits.
+Return JSON only in exactly this shape: {"plates":["2793"]}. Do not treat any other four-digit text as a plate. Never guess, infer, or complete unreadable text. Return {"plates":[]} when no confirmed Ukrainian National Police plate is clearly readable. Do not return explanations or markdown.`;
 
 const plateFormat = {
   type: "object",
@@ -51,18 +54,22 @@ export class OllamaVisionAnalyzer implements VisionAnalyzer {
     this.fetcher = options.fetcher ?? fetch;
   }
 
-  readonly analyze = async (image: Uint8Array): Promise<ReadonlyArray<string>> => {
+  private readonly analyzePrompt = async (
+    prompt: string,
+    image: Uint8Array,
+    timeoutMs: number,
+  ): Promise<ReadonlyArray<string>> => {
     const response = await this.fetcher(`${this.options.baseUrl.replace(/\/$/u, "")}/api/chat`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      signal: AbortSignal.timeout(this.options.timeoutMs),
+      signal: AbortSignal.timeout(timeoutMs),
       body: JSON.stringify({
         model: this.options.model,
         stream: false,
         format: plateFormat,
         messages: [{
           role: "user",
-          content: PLATE_PROMPT,
+          content: prompt,
           images: [Buffer.from(image).toString("base64")],
         }],
       }),
@@ -74,5 +81,15 @@ export class OllamaVisionAnalyzer implements VisionAnalyzer {
       ? (responseBody as { message?: { content?: unknown } }).message?.content
       : undefined;
     return typeof content === "string" ? recognizedPlates(content) : [];
+  };
+
+  readonly analyze = async (image: Uint8Array): Promise<ReadonlyArray<string>> => {
+    const startedAt = Date.now();
+    const plates = await this.analyzePrompt(PLATE_PROMPT, image, this.options.timeoutMs);
+    if (plates.length > 0) return plates;
+
+    const remainingMs = this.options.timeoutMs - (Date.now() - startedAt);
+    if (remainingMs < 1) return [];
+    return this.analyzePrompt(POLICE_PLATE_PROMPT, image, remainingMs);
   };
 }

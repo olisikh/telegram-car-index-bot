@@ -45,8 +45,10 @@ The response is untrusted. The bot accepts a candidate only after it:
 1. is a string in the `plates` array;
 2. has visual whitespace/hyphens removed;
 3. has Ukrainian/Latin lookalikes normalized;
-4. matches a supported plate format;
+4. matches a supported plate format, including four-digit Ukrainian National Police blue plates;
 5. is deduplicated within that photo.
+
+When the general pass finds no plate, the local analyzer performs one additional, time-bounded pass specifically for visibly confirmed Ukrainian National Police markings/blue plates. Both passes share the configured overall timeout.
 
 Photo bytes are passed from Telegram directly to Ollama in memory as base64 and are not written to disk. The default `OLLAMA_BASE_URL` is `127.0.0.1`; using a remote endpoint changes the privacy model because it transfers source images externally.
 

@@ -9,6 +9,8 @@ const PLATE_FORMATS: Record<string, RegExp> = {
   // Current Ukrainian civilian series can be written entirely with Latin letters.
   // Keep Cyrillic lookalike normalization above for legacy physical plates.
   UA: /^[A-Z]{2}\d{4}[A-Z]{2}$/,
+  // Ukrainian National Police blue special plates use exactly four digits.
+  UA_POLICE: /^\d{4}$/,
   PL: /^[A-Z]{2,3}[A-Z0-9]{4,5}$/,
   DE: /^[A-Z]{2,5}\d{1,4}$/,
   LT: /^[A-Z]{3}\d{3}$/,

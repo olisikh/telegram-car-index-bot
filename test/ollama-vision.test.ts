@@ -3,8 +3,8 @@ import { OllamaVisionAnalyzer, recognizedPlates } from "../src/ollama-vision.js"
 
 describe("recognizedPlates", () => {
   it("accepts only valid normalized plates from strict JSON", () => {
-    expect(recognizedPlates('{"plates":["АА1234ВВ", "AA 1234 BB", "not a plate", "AA1234BB"]}')).toEqual([
-      "AA1234BB",
+    expect(recognizedPlates('{"plates":["АА1234ВВ", "AA 1234 BB", "2793", "not a plate", "AA1234BB"]}')).toEqual([
+      "AA1234BB", "2793",
     ]);
   });
 
@@ -36,6 +36,21 @@ describe("OllamaVisionAnalyzer", () => {
       stream: false,
       messages: [{ images: ["AQID"] }],
     });
+  });
+
+  it("uses a police-plate fallback when the general pass finds no plate", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '{"plates":[]}' } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '{"plates":["2793"]}' } }), { status: 200 }));
+    const analyzer = new OllamaVisionAnalyzer({
+      baseUrl: "http://127.0.0.1:11434",
+      model: "gemma4:latest",
+      timeoutMs: 1000,
+      fetcher,
+    });
+
+    await expect(analyzer.analyze(Uint8Array.from([1]))).resolves.toEqual(["2793"]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("fails safely when Ollama returns an error", async () => {

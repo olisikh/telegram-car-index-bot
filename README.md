@@ -41,7 +41,7 @@ Recognition is conservative:
 4. Invalid, malformed, or empty model output is never indexed.
 5. Multiple valid plates in one photo are indexed separately against the same source message.
 
-Supported formats currently include Ukraine, Poland, Germany, Lithuania, Romania, Slovakia, Hungary, and Czechia. The same validation is used by `/find`.
+Supported formats currently include Ukraine (including all-Latin civilian series and four-digit National Police blue plates), Poland, Germany, Lithuania, Romania, Slovakia, Hungary, and Czechia. The same validation is used by `/find`.
 
 ## Recognition feedback
 

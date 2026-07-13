@@ -13,7 +13,7 @@ The bot stores only normalized plate data, source-chat scope, Telegram message U
 - `src/serial-queue.ts` — single-worker recognition queue that protects the Mac from concurrent vision jobs.
 - `src/index.ts` — composition root: Telegram handlers, command registration, authorization, and response rendering.
 - `src/database.ts` — SQLite schema, additive migrations, and queries.
-- `src/plates.ts` — plate normalization and validation. Supported formats are deliberate product policy.
+- `src/plates.ts` — plate normalization and validation, including Ukrainian civilian all-Latin series and four-digit National Police special plates. Supported formats are deliberate product policy.
 - `src/car-indexing.ts`, `src/tagged-photo.ts`, `src/indexing.ts` — indexing paths and record shape.
 - `src/car-list.ts` — `/list` pagination and callback-data helpers.
 - `src/polling.ts` — the single explicit long-poll loop.

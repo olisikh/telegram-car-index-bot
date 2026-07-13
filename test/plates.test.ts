@@ -6,6 +6,10 @@ describe("normalizePlate", () => {
     expect(normalizePlate("аА1234вВ")).toBe("AA1234BB");
   });
 
+  it("accepts a Ukrainian National Police four-digit plate", () => {
+    expect(normalizePlate("2793")).toBe("2793");
+  });
+
   it("accepts current Ukrainian all-Latin registration series", () => {
     expect(normalizePlate("AE1131YF")).toBe("AE1131YF");
   });
