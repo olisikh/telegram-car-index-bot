@@ -27,6 +27,11 @@ export interface CarListPage {
   readonly total: number;
 }
 
+export interface PlateChoicePage {
+  readonly plates: ReadonlyArray<string>;
+  readonly total: number;
+}
+
 export class SqliteIndexStore implements IndexStore {
   private readonly database: Database.Database;
 
@@ -83,6 +88,14 @@ export class SqliteIndexStore implements IndexStore {
       if (internalId) updateLegacyChat.run(Number(`-100${internalId}`), record.rowid);
     }
     this.database.exec(`
+      INSERT INTO plate_fts (plate)
+      SELECT DISTINCT im.plate
+      FROM indexed_messages AS im
+      WHERE NOT EXISTS (
+        SELECT 1 FROM plate_fts AS fts WHERE fts.plate = im.plate
+      );
+    `);
+    this.database.exec(`
       CREATE INDEX IF NOT EXISTS indexed_messages_plate_chat
       ON indexed_messages(plate, chat_id);
       CREATE INDEX IF NOT EXISTS indexed_messages_plate_chat_created
@@ -108,12 +121,18 @@ export class SqliteIndexStore implements IndexStore {
   });
 
   readonly save = (record: IndexRecord): Effect.Effect<void> => Effect.sync(() => {
-    this.database.prepare(`
+    const insert = this.database.prepare(`
       INSERT INTO indexed_messages (plate, chat_id, message_url, message_preview, media_type, media_group_id)
       VALUES (@plate, @chatId, @messageUrl, @messagePreview, @mediaType, @mediaGroupId)
       ON CONFLICT DO NOTHING
     `).run({ ...record, mediaType: record.mediaType ?? null, mediaGroupId: record.mediaGroupId ?? null });
-    this.database.prepare("INSERT INTO plate_fts (plate) VALUES (?)").run(record.plate);
+    if (insert.changes > 0) {
+      this.database.prepare(`
+        INSERT INTO plate_fts (plate)
+        SELECT ?
+        WHERE NOT EXISTS (SELECT 1 FROM plate_fts WHERE plate = ?)
+      `).run(record.plate, record.plate);
+    }
   });
 
   readonly recordMediaGroupMember = (member: MediaGroupMember): Effect.Effect<void> => Effect.sync(() => {
@@ -178,6 +197,28 @@ export class SqliteIndexStore implements IndexStore {
       ORDER BY im.created_at DESC
       LIMIT 50
     `).all(query.replace(/"/gu, '""'), chatId) as ReadonlyArray<SearchResult>;
+  });
+
+  readonly searchPlateChoices = (query: string, chatId: number, limit: number, offset: number): Effect.Effect<PlateChoicePage> => Effect.sync(() => {
+    const ftsQuery = query.replace(/"/gu, '""');
+    const total = (this.database.prepare(`
+      SELECT COUNT(DISTINCT im.plate) AS total
+      FROM indexed_messages AS im
+      WHERE im.chat_id = ? AND im.plate IN (
+        SELECT DISTINCT plate FROM plate_fts WHERE plate_fts MATCH ?
+      )
+    `).get(chatId, ftsQuery) as { total: number }).total;
+    const plates = this.database.prepare(`
+      SELECT im.plate
+      FROM indexed_messages AS im
+      WHERE im.chat_id = ? AND im.plate IN (
+        SELECT DISTINCT plate FROM plate_fts WHERE plate_fts MATCH ?
+      )
+      GROUP BY im.plate
+      ORDER BY MAX(im.created_at) DESC, im.plate ASC
+      LIMIT ? OFFSET ?
+    `).all(chatId, ftsQuery, limit, offset) as ReadonlyArray<{ plate: string }>;
+    return { total, plates: plates.map(({ plate }) => plate) };
   });
 
   readonly listCars = (chatId: number, limit: number, offset: number): Effect.Effect<CarListPage> => Effect.sync(() => {

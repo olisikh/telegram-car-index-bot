@@ -64,6 +64,44 @@ describe("SqliteIndexStore partial plate search", () => {
     expect(results.length).toBe(50);
   });
 
+  it("returns unique matching plates for a picker", async () => {
+    const store = new SqliteIndexStore(":memory:");
+    await Effect.runPromise(store.save({
+      plate: "AX6537HT", chatId: -100111, messageUrl: "https://t.me/c/111/1", messagePreview: "",
+    }));
+    await Effect.runPromise(store.save({
+      plate: "AX6537HT", chatId: -100111, messageUrl: "https://t.me/c/111/2", messagePreview: "",
+    }));
+    await Effect.runPromise(store.save({
+      plate: "BE6532AA", chatId: -100111, messageUrl: "https://t.me/c/111/3", messagePreview: "",
+    }));
+    await Effect.runPromise(store.save({
+      plate: "KA1653AX", chatId: -100222, messageUrl: "https://t.me/c/222/1", messagePreview: "",
+    }));
+
+    await expect(Effect.runPromise(store.searchPlateChoices("653", -100111, 10, 0))).resolves.toEqual({
+      total: 2,
+      plates: ["AX6537HT", "BE6532AA"],
+    });
+  });
+
+  it("paginates matching plate choices", async () => {
+    const store = new SqliteIndexStore(":memory:");
+    for (let index = 0; index < 12; index++) {
+      await Effect.runPromise(store.save({
+        plate: `AX${String(index).padStart(4, "0")}BB`,
+        chatId: -100111,
+        messageUrl: `https://t.me/c/111/${index}`,
+        messagePreview: "",
+      }));
+    }
+
+    await expect(Effect.runPromise(store.searchPlateChoices("AX0", -100111, 10, 10))).resolves.toEqual({
+      total: 12,
+      plates: ["AX0010BB", "AX0011BB"],
+    });
+  });
+
   it("still uses mediaTypes aggregation for partial matches", async () => {
     const store = new SqliteIndexStore(":memory:");
     await Effect.runPromise(store.save({

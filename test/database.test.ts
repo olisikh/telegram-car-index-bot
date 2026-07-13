@@ -56,6 +56,10 @@ describe("SqliteIndexStore", () => {
     await expect(Effect.runPromise(store.find("AA1234BB", -1001400317169))).resolves.toMatchObject([
       { messagePreview: "Мультимедіа" },
     ]);
+    await expect(Effect.runPromise(store.searchPlateChoices("123", -1001400317169, 10, 0))).resolves.toEqual({
+      total: 1,
+      plates: ["AA1234BB"],
+    });
     store.close();
     rmSync(directory, { recursive: true, force: true });
   });
@@ -106,6 +110,24 @@ describe("SqliteIndexStore", () => {
       { mediaTypes: "photo,video" },
     ]);
     store.close();
+  });
+
+  it("keeps one FTS entry per normalized plate", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "car-index-fts-"));
+    const path = join(directory, "index.db");
+    const store = new SqliteIndexStore(path);
+    await Effect.runPromise(store.save({
+      plate: "AA1234BB", chatId: -100111, messageUrl: "https://t.me/c/111/1", messagePreview: "",
+    }));
+    await Effect.runPromise(store.save({
+      plate: "AA1234BB", chatId: -100111, messageUrl: "https://t.me/c/111/2", messagePreview: "",
+    }));
+    store.close();
+
+    const raw = new Database(path, { readonly: true });
+    expect((raw.prepare("SELECT COUNT(*) AS total FROM plate_fts WHERE plate = ?").get("AA1234BB") as { total: number }).total).toBe(1);
+    raw.close();
+    rmSync(directory, { recursive: true, force: true });
   });
 
   it("creates the directory for a file-backed index", () => {

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { clampPage, findCallbackData, listCallbackData, LIST_PAGE_SIZE, pageCount, parseListCallback } from "../src/car-list.js";
+import {
+  clampPage,
+  findCallbackData,
+  listCallbackData,
+  LIST_PAGE_SIZE,
+  pageCount,
+  parseListCallback,
+  searchCallbackData,
+} from "../src/car-list.js";
 
 describe("car list pagination", () => {
   it("uses ten cars per page", () => {
@@ -18,8 +26,10 @@ describe("car list pagination", () => {
   it("encodes and parses compact callback actions", () => {
     expect(listCallbackData(3)).toBe("list:3");
     expect(findCallbackData("AA1234BB")).toBe("find:AA1234BB");
+    expect(searchCallbackData("809", 2)).toBe("search:809:2");
     expect(parseListCallback("list:3")).toEqual({ kind: "list", page: 3 });
     expect(parseListCallback("find:AA1234BB")).toEqual({ kind: "find", plate: "AA1234BB" });
+    expect(parseListCallback("search:809:2")).toEqual({ kind: "search", query: "809", page: 2 });
     expect(parseListCallback("oops")).toBeUndefined();
   });
 });

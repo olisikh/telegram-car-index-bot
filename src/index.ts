@@ -7,19 +7,22 @@ import { groupCommands } from "./commands.js";
 import { DetectorCropVisionAnalyzer } from "./detector-crop-analyzer.js";
 import { PythonFastPlateOcrAnalyzer } from "./fast-plate-ocr-analyzer.js";
 import { fastPlateOcrMode } from "./fast-plate-ocr-policy.js";
-import { clampPage, findCallbackData, listCallbackData, LIST_PAGE_SIZE, pageCount, parseListCallback } from "./car-list.js";
+import {
+  clampPage,
+  findCallbackData,
+  listCallbackData,
+  LIST_PAGE_SIZE,
+  pageCount,
+  parseListCallback,
+  searchCallbackData,
+} from "./car-list.js";
 import { SqliteIndexStore } from "./database.js";
 import { formatFindResult } from "./find-results.js";
 import { messageLink } from "./message-link.js";
 import { OllamaVisionAnalyzer } from "./ollama-vision.js";
 import { PythonPlateCropDetector } from "./plate-detector.js";
-import { LOOKALIKES } from "./plates.js";
+import { normalizeFindQuery } from "./find-query.js";
 import { processPhotoRecognition, type RecognitionMode } from "./photo-recognition.js";
-
-const normalizeFindQuery = (query: string): string => query
-  .toUpperCase()
-  .replace(/[АВСЕНІКМОРТХ]/gu, (character) => LOOKALIKES[character] ?? character)
-  .replace(/\s+/gu, "");
 import {
   recognitionCrashFeedback,
   recognitionNoPlateFeedback,
@@ -101,17 +104,52 @@ const allowed = (chatId: number): boolean => allowedChats.has(String(chatId));
 
 const chatUsername = (chat: { username?: string }): string | undefined => chat.username;
 
-const findReplyText = async (query: string, chatId: number): Promise<string> => {
-  const normalizedQuery = normalizeFindQuery(query);
+const exactFindReplyText = async (plate: string, chatId: number): Promise<string> => {
+  const results = await Effect.runPromise(database.find(plate, chatId));
+  if (results.length === 0) return `Для ${plate} нічого не знайдено.`;
+  const links = results.map((result, index) => formatFindResult(result, index + 1));
+  return `Знайдено ${results.length} повідомлень для ${plate}:\n${links.join("\n")}`;
+};
 
-  if (normalizedQuery.length < 3) {
-    return "Пошук за номером: введіть щонайменше 3 символи.";
+const findView = async (query: string, chatId: number, requestedPage = 0): Promise<{
+  readonly text: string;
+  readonly keyboard?: InlineKeyboard;
+}> => {
+  const normalizedQuery = normalizeFindQuery(query);
+  if (!normalizedQuery || normalizedQuery.length < 3) {
+    return { text: "Пошук за номером: введіть від 3 до 10 символів." };
   }
 
-  const results = await Effect.runPromise(database.searchPlates(normalizedQuery, chatId));
-  if (results.length === 0) return `Для ${normalizedQuery} нічого не знайдено.`;
-  const links = results.map((result, index) => formatFindResult(result, index + 1));
-  return `Знайдено ${results.length} повідомлень для ${normalizedQuery}:\n${links.join("\n")}`;
+  const initial = await Effect.runPromise(database.searchPlateChoices(
+    normalizedQuery,
+    chatId,
+    LIST_PAGE_SIZE,
+    requestedPage * LIST_PAGE_SIZE,
+  ));
+  if (initial.total === 0) return { text: `Для ${normalizedQuery} нічого не знайдено.` };
+  if (initial.total === 1) return { text: await exactFindReplyText(initial.plates[0], chatId) };
+
+  const page = clampPage(requestedPage, initial.total);
+  const result = page === requestedPage
+    ? initial
+    : await Effect.runPromise(database.searchPlateChoices(
+      normalizedQuery,
+      chatId,
+      LIST_PAGE_SIZE,
+      page * LIST_PAGE_SIZE,
+    ));
+  const keyboard = new InlineKeyboard();
+  for (const plate of result.plates) keyboard.text(plate, findCallbackData(plate)).row();
+  const pages = pageCount(result.total);
+  if (pages > 1) {
+    if (page > 0) keyboard.text("‹", searchCallbackData(normalizedQuery, page - 1));
+    keyboard.text(`${page + 1} / ${pages}`, "noop");
+    if (page < pages - 1) keyboard.text("›", searchCallbackData(normalizedQuery, page + 1));
+  }
+  return {
+    text: `Знайдено ${result.total} авто для ${normalizedQuery}. Обери ДНЗ:`,
+    keyboard,
+  };
 };
 
 const listView = async (chatId: number, requestedPage: number): Promise<{
@@ -251,12 +289,10 @@ bot.command("list", async (ctx) => {
 bot.command("find", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
   const query = ctx.match.trim();
-  if (query.length < 3) {
-    await ctx.reply("Пошук за номером: введіть щонайменше 3 символи.");
-    return;
-  }
-  await ctx.reply(await findReplyText(query, ctx.chat.id), {
+  const view = await findView(query, ctx.chat.id);
+  await ctx.reply(view.text, {
     parse_mode: "HTML",
+    reply_markup: view.keyboard,
     link_preview_options: { is_disabled: true },
   });
 });
@@ -269,12 +305,20 @@ bot.on("callback_query:data", async (ctx) => {
     return;
   }
   if (action.kind === "find") {
-    const query = normalizeFindQuery(action.plate);
     await ctx.answerCallbackQuery();
-    if (query.length < 3) return;
     await ctx.deleteMessage();
-    await ctx.reply(await findReplyText(query, chat.id), {
+    await ctx.reply(await exactFindReplyText(action.plate, chat.id), {
       parse_mode: "HTML",
+      link_preview_options: { is_disabled: true },
+    });
+    return;
+  }
+  if (action.kind === "search") {
+    const view = await findView(action.query, chat.id, action.page);
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(view.text, {
+      parse_mode: "HTML",
+      reply_markup: view.keyboard,
       link_preview_options: { is_disabled: true },
     });
     return;

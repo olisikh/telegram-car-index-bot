@@ -292,7 +292,7 @@ Use these commands in the group:
 /verbose off
 ```
 
-`/find` accepts a complete plate or any fragment of at least 3 characters. Every search result displays the matching plate number, then the source link and photo time.
+`/find` accepts a complete plate or any fragment of at least 3 characters. One match opens its source-photo list immediately; several matches show a plate picker, and selecting a plate opens its message list.
 
 ## Keep the bot running
 
