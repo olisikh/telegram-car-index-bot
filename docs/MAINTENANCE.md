@@ -48,10 +48,10 @@ Keep this setting while testing the database-write policy:
 PHOTO_RECOGNITION_MODE=shadow
 ```
 
-For direct-message evaluation, also enable per-photo responses:
+For direct-message evaluation, enable per-photo responses in that chat:
 
-```dotenv
-PHOTO_RECOGNITION_FEEDBACK=verbose
+```text
+/verbose on
 ```
 
 Send representative real service photos: clear, angled, distant, dark, and album photos. The bot analyzes them but writes no new index rows. Review safe telemetry:
@@ -150,7 +150,7 @@ Logs must not contain captions, downloaded image data, full model responses, or 
 2. Bot belongs to the intended supergroup.
 3. Group Privacy is disabled in BotFather if ordinary photo updates must reach the bot.
 4. The group ID is in `ALLOWED_CHAT_IDS`.
-5. Bot commands include `/find` and `/list` after startup; `/car` must not appear.
+5. Bot commands include `/find`, `/list`, and `/verbose` after startup; `/car` must not appear.
 6. `src/polling.ts` requests both `message` and `callback_query` updates.
 7. Ollama is reachable at the configured `OLLAMA_BASE_URL` before enabling `index` mode.
 

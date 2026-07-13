@@ -45,14 +45,16 @@ Supported formats currently include Ukraine, Poland, Germany, Lithuania, Romania
 
 ## Recognition feedback
 
-Configure `PHOTO_RECOGNITION_FEEDBACK` independently from indexing:
+Recognition feedback is disabled by default and stored independently for each allowed chat. Control it from that chat:
 
-| Value | Behavior |
-| --- | --- |
-| `silent` | The bot processes photos without replying. |
-| `verbose` | The bot replies after every photo: recognized plate(s), no readable plate, or a processing failure. |
+```text
+/verbose on
+/verbose off
+```
 
-The production direct-message test configuration uses `verbose`. Keep it `silent` in busy groups if one reply per photo would create unwanted noise.
+With verbose mode on, the bot replies after every photo with a direct source-photo link, recognized plate(s) when available, and the elapsed analysis time. It distinguishes a readable no-result, a timeout, and an unexpected processing crash. Internal error details remain only in the protected host logs.
+
+Use `/verbose on` in your direct-message test chat. Keep busy service groups off unless a reply per image is wanted.
 
 ## Local Ollama setup
 

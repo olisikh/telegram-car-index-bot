@@ -7,6 +7,17 @@ import { describe, expect, it } from "vitest";
 import { SqliteIndexStore } from "../src/database.js";
 
 describe("SqliteIndexStore", () => {
+  it("stores verbose recognition setting independently per chat", async () => {
+    const store = new SqliteIndexStore(":memory:");
+    await expect(Effect.runPromise(store.verboseRecognitionEnabled(-100111))).resolves.toBe(false);
+    await Effect.runPromise(store.setVerboseRecognition(-100111, true));
+    await expect(Effect.runPromise(store.verboseRecognitionEnabled(-100111))).resolves.toBe(true);
+    await expect(Effect.runPromise(store.verboseRecognitionEnabled(-100222))).resolves.toBe(false);
+    await Effect.runPromise(store.setVerboseRecognition(-100111, false));
+    await expect(Effect.runPromise(store.verboseRecognitionEnabled(-100111))).resolves.toBe(false);
+    store.close();
+  });
+
   it("returns a plate only from the requested chat", async () => {
     const store = new SqliteIndexStore(":memory:");
     await Effect.runPromise(store.save({

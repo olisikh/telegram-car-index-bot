@@ -52,6 +52,10 @@ export class SqliteIndexStore implements IndexStore {
         media_type TEXT NOT NULL CHECK (media_type IN ('photo', 'video')),
         PRIMARY KEY (chat_id, media_group_id, message_id)
       );
+      CREATE TABLE IF NOT EXISTS chat_recognition_settings (
+        chat_id INTEGER PRIMARY KEY,
+        verbose INTEGER NOT NULL DEFAULT 0 CHECK (verbose IN (0, 1))
+      );
     `);
     const columns = this.database.prepare("PRAGMA table_info(indexed_messages)").all() as Array<{ name: string }>;
     if (!columns.some((column) => column.name === "chat_id")) {
@@ -84,6 +88,21 @@ export class SqliteIndexStore implements IndexStore {
       ON media_group_members(chat_id, media_group_id);
     `);
   }
+
+  readonly verboseRecognitionEnabled = (chatId: number): Effect.Effect<boolean> => Effect.sync(() => {
+    const setting = this.database.prepare(`
+      SELECT verbose FROM chat_recognition_settings WHERE chat_id = ?
+    `).get(chatId) as { verbose: number } | undefined;
+    return setting?.verbose === 1;
+  });
+
+  readonly setVerboseRecognition = (chatId: number, enabled: boolean): Effect.Effect<void> => Effect.sync(() => {
+    this.database.prepare(`
+      INSERT INTO chat_recognition_settings (chat_id, verbose)
+      VALUES (?, ?)
+      ON CONFLICT(chat_id) DO UPDATE SET verbose = excluded.verbose
+    `).run(chatId, enabled ? 1 : 0);
+  });
 
   readonly save = (record: IndexRecord): Effect.Effect<void> => Effect.sync(() => {
     this.database.prepare(`

@@ -5,10 +5,16 @@ import { groupCommands } from "./commands.js";
 import { clampPage, findCallbackData, listCallbackData, LIST_PAGE_SIZE, pageCount, parseListCallback } from "./car-list.js";
 import { SqliteIndexStore } from "./database.js";
 import { formatFindResult } from "./find-results.js";
+import { messageLink } from "./message-link.js";
 import { OllamaVisionAnalyzer } from "./ollama-vision.js";
 import { normalizePlate } from "./plates.js";
 import { processPhotoRecognition, type RecognitionMode } from "./photo-recognition.js";
-import { recognitionFailureFeedback, recognitionFeedback } from "./recognition-feedback.js";
+import {
+  recognitionCrashFeedback,
+  recognitionNoPlateFeedback,
+  recognitionSuccessFeedback,
+  recognitionTimeoutFeedback,
+} from "./recognition-feedback.js";
 import { runLongPolling } from "./polling.js";
 import { SerialQueue } from "./serial-queue.js";
 
@@ -29,10 +35,6 @@ if (recognitionModeValue !== "shadow" && recognitionModeValue !== "index") {
   throw new Error("PHOTO_RECOGNITION_MODE must be shadow or index");
 }
 const recognitionMode: RecognitionMode = recognitionModeValue;
-const recognitionFeedbackMode = process.env.PHOTO_RECOGNITION_FEEDBACK ?? "silent";
-if (recognitionFeedbackMode !== "silent" && recognitionFeedbackMode !== "verbose") {
-  throw new Error("PHOTO_RECOGNITION_FEEDBACK must be silent or verbose");
-}
 const ollamaModel = process.env.OLLAMA_MODEL ?? "gemma4:latest";
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
 const ollamaTimeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS ?? "60000");
@@ -112,7 +114,21 @@ bot.use(async (ctx, next) => {
 
 bot.command("start", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  await ctx.reply("Готово. Надішли фото авто — бот спробує розпізнати ДНЗ.\nПошук: /find AA1234BB · Список: /list");
+  await ctx.reply("Готово. Надішли фото авто — бот спробує розпізнати ДНЗ.\nПошук: /find AA1234BB · Список: /list\nСтатус: /verbose on або /verbose off");
+});
+
+bot.command("verbose", async (ctx) => {
+  if (!allowed(ctx.chat.id)) return;
+  const value = ctx.match.trim().toLowerCase();
+  if (value !== "on" && value !== "off") {
+    await ctx.reply("Формат: /verbose on або /verbose off");
+    return;
+  }
+  const enabled = value === "on";
+  await Effect.runPromise(database.setVerboseRecognition(ctx.chat.id, enabled));
+  await ctx.reply(enabled
+    ? "🔔 Детальний статус розпізнавання увімкнено для цього чату."
+    : "🔕 Детальний статус розпізнавання вимкнено для цього чату.");
 });
 
 bot.on("message:photo", async (ctx) => {
@@ -120,6 +136,12 @@ bot.on("message:photo", async (ctx) => {
   const largestPhoto = ctx.message.photo.at(-1);
   if (!largestPhoto) return;
 
+  const startedAt = Date.now();
+  const sourcePhotoUrl = messageLink({
+    chatId: ctx.chat.id,
+    messageId: ctx.message.message_id,
+    username: chatUsername(ctx.chat),
+  });
   try {
     const plates = await photoQueue.enqueue(async () => processPhotoRecognition({
       store: database,
@@ -133,16 +155,24 @@ bot.on("message:photo", async (ctx) => {
       chatUsername: chatUsername(ctx.chat),
       mediaGroupId: ctx.message.media_group_id,
     }));
-    if (recognitionFeedbackMode === "verbose") {
-      await ctx.reply(recognitionFeedback(plates));
+    const verbose = await Effect.runPromise(database.verboseRecognitionEnabled(ctx.chat.id));
+    if (verbose) {
+      const feedback = plates.length > 0
+        ? recognitionSuccessFeedback(sourcePhotoUrl, plates, Date.now() - startedAt)
+        : recognitionNoPlateFeedback(sourcePhotoUrl, Date.now() - startedAt);
+      await ctx.reply(feedback, { parse_mode: "HTML", link_preview_options: { is_disabled: true } });
     }
     console.info(
       `photo recognition chat=${ctx.chat.id} message=${ctx.message.message_id}`
       + ` candidates=${plates.length} mode=${recognitionMode}`,
     );
   } catch (error) {
-    if (recognitionFeedbackMode === "verbose") {
-      await ctx.reply(recognitionFailureFeedback());
+    const verbose = await Effect.runPromise(database.verboseRecognitionEnabled(ctx.chat.id));
+    if (verbose) {
+      const feedback = error instanceof Error && error.name === "TimeoutError"
+        ? recognitionTimeoutFeedback(sourcePhotoUrl, Date.now() - startedAt)
+        : recognitionCrashFeedback(sourcePhotoUrl, Date.now() - startedAt);
+      await ctx.reply(feedback, { parse_mode: "HTML", link_preview_options: { is_disabled: true } });
     }
     console.error(
       `photo recognition failed chat=${ctx.chat.id} message=${ctx.message.message_id}`,
@@ -203,5 +233,5 @@ bot.on("callback_query:data", async (ctx) => {
 });
 
 await bot.api.setMyCommands(groupCommands, { scope: { type: "all_group_chats" } });
-console.info(`Bot is running; photo recognition mode=${recognitionMode} feedback=${recognitionFeedbackMode} model=${ollamaModel}`);
+console.info(`Bot is running; photo recognition mode=${recognitionMode} model=${ollamaModel}`);
 await runLongPolling(bot);

@@ -61,14 +61,14 @@ The default is `shadow`. Change to `index` only after representative live images
 
 ## Recognition feedback
 
-`PHOTO_RECOGNITION_FEEDBACK` controls replies independently of whether the bot writes index records:
+Verbose status is stored per chat in `chat_recognition_settings` and defaults to off. An allowed-chat user controls it in the target chat:
 
-| Value | Reply behavior |
-| --- | --- |
-| `silent` | No recognition reply. |
-| `verbose` | Reply with recognized plate(s), a clear no-plate result, or an analysis-failure message. |
+```text
+/verbose on
+/verbose off
+```
 
-Use `verbose` for direct-message/testing chats. Consider `silent` in high-volume groups to avoid a reply per image.
+When enabled, each completion reply contains a direct source-photo link, recognized plate(s) where available, the outcome (no plate, timeout, or crash), and elapsed time. It intentionally does not disclose raw model output or internal exception data.
 
 ## Queue and reliability model
 
