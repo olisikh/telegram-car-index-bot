@@ -13,7 +13,7 @@ const timingFeedback = (timings: RecognitionTimings | undefined): string => {
     timings.ocrMs === undefined ? undefined : `👁️ ${stageElapsed(timings.ocrMs)}`,
   ].filter((line): line is string => line !== undefined);
 
-  return lines.length === 0 ? "" : ` - ${lines.join(" - ")}`;
+  return lines.length === 0 ? "" : ` - ${lines.join(" ")}`;
 };
 
 export const recognitionSuccessFeedback = (
