@@ -47,13 +47,7 @@ Docker uses a named Linux volume for the database rather than a Windows folder m
 1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 2. Download `compose.yaml` and `.env.example` from the repository into an empty folder.
 3. Rename `.env.example` to `.env` and enter the Telegram token and allowed group IDs.
-4. While the GHCR package remains private, sign in once with a GitHub personal access token that has `read:packages`:
-
-   ```bash
-   docker login ghcr.io
-   ```
-
-5. In that folder, run:
+4. In that folder, run:
 
    ```bash
    docker compose pull
@@ -76,7 +70,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Compose defaults to `ghcr.io/olisikh/telegram-car-index-bot:latest` with `pull_policy: always`, ensuring `docker compose up -d` checks for the newest published image. Authentication remains required until the existing GHCR package itself becomes public.
+The package is public, so `docker login` is not required. Compose defaults to `ghcr.io/olisikh/telegram-car-index-bot:latest` with `pull_policy: always`, ensuring `docker compose up -d` checks for the newest published image.
 
 Docker retains the `car-index-data` volume across image upgrades. Do **not** use `docker compose down -v` unless intentionally deleting the SQLite index and per-chat settings.
 
@@ -89,6 +83,6 @@ docker build -t telegram-car-index-bot:local .
 BOT_IMAGE=telegram-car-index-bot:local BOT_PULL_POLICY=never docker compose up -d
 ```
 
-The GitHub Actions `Publish container image` workflow is configured to build and publish multi-architecture (`linux/amd64`, `linux/arm64`) images to `ghcr.io/olisikh/telegram-car-index-bot` for `v*` tags and manual workflow dispatches. Repository visibility does not retroactively change the visibility of the existing GHCR package.
+The GitHub Actions `Publish container image` workflow is configured to build and publish public multi-architecture (`linux/amd64`, `linux/arm64`) images to `ghcr.io/olisikh/telegram-car-index-bot` for `v*` tags and manual workflow dispatches.
 
 The detector and OCR model files are architecture-neutral. The Dockerfile downloads them once in a `$BUILDPLATFORM` stage and copies them into both target images, avoiding an emulated ARM64 Hugging Face download. GitHub Actions also exports BuildKit layers to the GitHub Actions cache so unchanged dependency and model layers can be reused by later builds.

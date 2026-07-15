@@ -4,12 +4,6 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
-    inputs:
-      recreate_package:
-        description: Delete the existing GHCR package before publishing
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -20,14 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Delete existing GHCR package before recreation
-        if: ${{ inputs.recreate_package }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: >-
-          gh api --method DELETE
-          --header "X-GitHub-Api-Version: 2022-11-28"
-          /users/${{ github.repository_owner }}/packages/container/telegram-car-index-bot
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - id: meta
