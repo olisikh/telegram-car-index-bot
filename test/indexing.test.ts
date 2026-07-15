@@ -1,10 +1,10 @@
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
-import { indexPhotoMessage, type IndexStore } from "../src/indexing.js";
+import { describe, expect, it } from "bun:test";
+import { indexPhotoMessage, type IndexStore } from "../src/indexing";
 
 describe("indexPhotoMessage", () => {
   it("indexes every plate in a photo caption with a direct Telegram link", async () => {
-    const saved: Array<{ plate: string; chatId: number; messageUrl: string }> = [];
+    const saved: unknown[] = [];
     const store: IndexStore = {
       save: (record) => Effect.sync(() => { saved.push(record); }),
     };

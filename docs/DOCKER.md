@@ -1,12 +1,12 @@
 # Docker deployment
 
-The project ships as one self-contained image: Node.js, compiled bot, Python, YOLO detector, FastPlateOCR, the plate-detector weights, and the OCR model are included. It needs no Ollama, host Python installation, or runtime model download on the target machine. Telegram photo downloads still use the Bot API; detector and OCR inference stay inside the container.
+The project ships as one self-contained image: Bun, compiled bot, Python, YOLO detector, FastPlateOCR, the plate-detector weights, and the OCR model are included. It needs no Ollama, host Python installation, or runtime model download on the target machine. Telegram photo downloads still use the Bot API; detector and OCR inference stay inside the container.
 
 The named Docker volume `car-index-data` persists `/app/data`, including SQLite and its WAL/SHM files. Application stdout and stderr are handled by Docker's logging driver and are viewed with `docker compose logs`; they are not files in the named volume. The active runtime keeps source photos and crops in memory only.
 
 ## Windows laptop: recommended method
 
-Use the Docker method on Windows; it is simpler than installing Node.js, Python, YOLO, and FastPlateOCR separately.
+Use the Docker method on Windows; it is simpler than installing Bun, Python, YOLO, and FastPlateOCR separately.
 
 ### One-time setup
 
@@ -38,7 +38,7 @@ Use the Docker method on Windows; it is simpler than installing Node.js, Python,
    docker compose ps
    ```
 
-This image is CPU-only: no NVIDIA driver, CUDA, WSL GPU setup, Node.js, or Python installation is required on the host. This repository does not publish a measured minimum RAM allocation; if Docker Desktop has a custom memory cap, recognition must be tested under that cap.
+This image is CPU-only: no NVIDIA driver, CUDA, WSL GPU setup, Bun, or Python installation is required on the host. This repository does not publish a measured minimum RAM allocation; if Docker Desktop has a custom memory cap, recognition must be tested under that cap.
 
 Docker uses a named Linux volume for the database rather than a Windows folder mount, avoiding Windows-file-system performance and permission issues.
 

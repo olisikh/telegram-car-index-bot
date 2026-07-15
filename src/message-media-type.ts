@@ -1,4 +1,4 @@
-import type { MediaType } from "./media-label.js";
+import type { MediaType } from "./media-label";
 
 type CaptionableMessage = {
   readonly photo?: unknown;

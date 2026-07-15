@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { carCommandPlate } from "../src/car-command.js";
+import { describe, expect, it } from "bun:test";
+import { carCommandPlate } from "../src/car-command";
 
 describe("carCommandPlate", () => {
   it("uses the first word after /car as the plate and ignores the remaining message", () => {

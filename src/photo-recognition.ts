@@ -1,7 +1,7 @@
 import { Effect } from "effect";
-import { indexRecognizedPhotoMessage, type IndexStore } from "./indexing.js";
-import type { PlateAnalyzer } from "./plate-analyzer.js";
-import type { TimedRecognition } from "./recognition-timings.js";
+import { indexRecognizedPhotoMessage, type IndexStore } from "./indexing";
+import type { PlateAnalyzer } from "./plate-analyzer";
+import type { TimedRecognition } from "./recognition-timings";
 
 export interface PhotoDownloader {
   readonly download: (fileId: string) => Promise<Uint8Array>;

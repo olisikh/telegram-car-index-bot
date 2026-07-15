@@ -1,5 +1,5 @@
-import type { SearchResult } from "./database.js";
-import { messages, type Locale } from "./i18n.js";
+import type { SearchResult } from "./database";
+import { messages, type Locale } from "./i18n";
 
 const escapeHtml = (value: string): string => value
   .replace(/&/gu, "&amp;")

@@ -31,7 +31,7 @@ cd telegram-car-index-bot
 
 ## 3. Choose Docker on Windows (recommended)
 
-For a Windows laptop, use the one-image Docker route in [DOCKER.md](DOCKER.md). It needs only Docker Desktop with its WSL 2 Linux backend; it bundles Node.js, Python, YOLO, FastPlateOCR, and both model files. Do not follow the native Node/Python instructions below unless you specifically need a developer setup.
+For a Windows laptop, use the one-image Docker route in [DOCKER.md](DOCKER.md). It needs only Docker Desktop with its WSL 2 Linux backend; it bundles Bun, Python, YOLO, FastPlateOCR, and both model files. Do not follow the native Bun/Python instructions below unless you specifically need a developer setup.
 
 ## 4. Native development prerequisites
 
@@ -39,7 +39,7 @@ For a Windows laptop, use the one-image Docker route in [DOCKER.md](DOCKER.md). 
 
 ```bash
 cp .env.example .env
-npm install
+bun install
 python3 -m venv .vision-venv
 .vision-venv/bin/python -m pip install --upgrade pip
 .vision-venv/bin/python -m pip install -r requirements.txt
@@ -52,7 +52,7 @@ mv models/best.pt models/license-plate-detector.pt
 
 ```powershell
 Copy-Item .env.example .env
-npm install
+bun install
 py -3 -m venv .vision-venv
 .\.vision-venv\Scripts\python.exe -m pip install --upgrade pip
 .\.vision-venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -93,8 +93,8 @@ For multiple groups, separate IDs with commas.
 ## 6. Test before indexing
 
 ```bash
-npm run build
-npm start
+bun run build
+bun start
 ```
 
 In the target chat, send `/verbose on`, then send a normal car photo as a **photo**, not a file. The bot will show the recognition result and detector/crop/OCR timing. Every validated plate is indexed immediately.
@@ -119,7 +119,7 @@ English is used by default. Run `/lang uk` for Ukrainian or `/lang en` to switch
 
 ## Keep it running
 
-On macOS, use the provided LaunchAgent procedure in [MAINTENANCE.md](MAINTENANCE.md). On Windows or Linux, run `npm run build` after each source update, then use Task Scheduler or a system service to run `npm start` from the project folder. Never run two copies of the bot with the same token: Telegram will stop one poller with a `409 Conflict` error.
+On macOS, use the provided LaunchAgent procedure in [MAINTENANCE.md](MAINTENANCE.md). On Windows or Linux, run `bun run build` after each source update, then use Task Scheduler or a system service to run `bun start` from the project folder. Never run two copies of the bot with the same token: Telegram will stop one poller with a `409 Conflict` error.
 
 ## Troubleshooting
 

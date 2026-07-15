@@ -1,4 +1,4 @@
-import { LOOKALIKES } from "./plates.js";
+import { LOOKALIKES } from "./plates";
 
 export const MAX_FIND_QUERY_LENGTH = 10;
 

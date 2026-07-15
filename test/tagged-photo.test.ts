@@ -1,11 +1,11 @@
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
-import { indexTaggedMediaReply } from "../src/tagged-photo.js";
-import type { IndexStore } from "../src/indexing.js";
+import { describe, expect, it } from "bun:test";
+import { indexTaggedMediaReply } from "../src/tagged-photo";
+import type { IndexStore } from "../src/indexing";
 
 describe("indexTaggedMediaReply", () => {
   it("indexes the replied-to photo when a text message starts with a plate hashtag", async () => {
-    const saved: Array<{ plate: string; chatId: number; messageUrl: string }> = [];
+    const saved: unknown[] = [];
     const store: IndexStore = { save: (record) => Effect.sync(() => { saved.push(record); }) };
 
     await Effect.runPromise(indexTaggedMediaReply(store, {

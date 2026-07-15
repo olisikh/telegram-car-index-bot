@@ -1,9 +1,9 @@
 import { Effect } from "effect";
-import { carCommandPlate } from "./car-command.js";
-import type { IndexStore } from "./indexing.js";
-import { messageLink } from "./message-link.js";
-import { carMessagePreview } from "./message-preview.js";
-import type { MediaType } from "./media-label.js";
+import { carCommandPlate } from "./car-command";
+import type { IndexStore } from "./indexing";
+import { messageLink } from "./message-link";
+import { carMessagePreview } from "./message-preview";
+import type { MediaType } from "./media-label";
 
 export interface CarMessage {
   readonly chatId: number;

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { SqliteIndexStore } from "../src/database.js";
+import { describe, expect, it } from "bun:test";
+import { SqliteIndexStore } from "../src/database";
 import { Effect } from "effect";
 
 describe("SqliteIndexStore partial plate search", () => {

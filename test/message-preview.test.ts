@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { carMessagePreview, MESSAGE_PREVIEW_MAX_LENGTH } from "../src/message-preview.js";
+import { describe, expect, it } from "bun:test";
+import { carMessagePreview, MESSAGE_PREVIEW_MAX_LENGTH } from "../src/message-preview";
 
 describe("carMessagePreview", () => {
   it("omits the command and plate, then normalizes the remaining message", () => {

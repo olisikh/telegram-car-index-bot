@@ -1,4 +1,4 @@
-import { messages, type Locale } from "./i18n.js";
+import { messages, type Locale } from "./i18n";
 
 export type MediaType = "photo" | "video";
 

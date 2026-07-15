@@ -1,5 +1,5 @@
 import { Bot } from "grammy";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 describe("text indexing middleware", () => {
   it("passes command messages to subsequent command handlers", async () => {

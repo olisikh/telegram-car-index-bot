@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { chatCommandMenu, groupCommands } from "../src/commands.js";
+import { describe, expect, it } from "bun:test";
+import { chatCommandMenu, groupCommands } from "../src/commands";
 
 describe("groupCommands", () => {
   it("advertises English commands by default", () => {

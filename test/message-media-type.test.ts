@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { mediaTypeFromMessage } from "../src/message-media-type.js";
+import { describe, expect, it } from "bun:test";
+import { mediaTypeFromMessage } from "../src/message-media-type";
 
 describe("mediaTypeFromMessage", () => {
   it("recognizes Telegram photos", () => {

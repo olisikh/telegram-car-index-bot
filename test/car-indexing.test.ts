@@ -1,11 +1,11 @@
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
-import { indexCarMessage } from "../src/car-indexing.js";
-import type { IndexStore } from "../src/indexing.js";
+import { describe, expect, it } from "bun:test";
+import { indexCarMessage } from "../src/car-indexing";
+import type { IndexStore } from "../src/indexing";
 
 describe("indexCarMessage", () => {
   it("indexes a non-photo /car message in its source chat", async () => {
-    const saved: Array<{ plate: string; chatId: number; messageUrl: string }> = [];
+    const saved: unknown[] = [];
     const store: IndexStore = { save: (record) => Effect.sync(() => { saved.push(record); }) };
 
     await Effect.runPromise(indexCarMessage(store, {

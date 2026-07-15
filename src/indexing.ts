@@ -1,8 +1,8 @@
 import { Effect } from "effect";
-import { messageLink } from "./message-link.js";
-import { carMessagePreview } from "./message-preview.js";
-import type { MediaType } from "./media-label.js";
-import { extractPlates } from "./plates.js";
+import { messageLink } from "./message-link";
+import { carMessagePreview } from "./message-preview";
+import type { MediaType } from "./media-label";
+import { extractPlates } from "./plates";
 
 export interface IndexRecord {
   readonly plate: string;

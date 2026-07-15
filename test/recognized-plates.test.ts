@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { recognizedPlates } from "../src/recognized-plates.js";
+import { describe, expect, it } from "bun:test";
+import { recognizedPlates } from "../src/recognized-plates";
 
 describe("recognizedPlates", () => {
   it("normalizes, validates, deduplicates, and rejects malformed reader output", () => {

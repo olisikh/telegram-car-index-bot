@@ -1,10 +1,10 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import Database from "better-sqlite3";
+import { Database } from "bun:sqlite";
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
-import { SqliteIndexStore } from "../src/database.js";
+import { describe, expect, it } from "bun:test";
+import { SqliteIndexStore } from "../src/database";
 
 describe("SqliteIndexStore", () => {
   it("stores language independently per chat and defaults to English", async () => {
@@ -108,7 +108,7 @@ describe("SqliteIndexStore", () => {
         UNIQUE(plate, message_url)
       );
     `);
-    legacy.prepare("INSERT INTO indexed_messages (plate, message_url) VALUES (?, ?)")
+    legacy.query("INSERT INTO indexed_messages (plate, message_url) VALUES (?, ?)")
       .run("AA1234BB", "https://t.me/c/1400317169/46373");
     legacy.close();
 
@@ -134,7 +134,7 @@ describe("SqliteIndexStore", () => {
         message_preview TEXT NOT NULL, created_at TEXT NOT NULL
       );
     `);
-    const insert = raw.prepare("INSERT INTO indexed_messages VALUES (?, ?, ?, ?, ?)");
+    const insert = raw.query("INSERT INTO indexed_messages VALUES (?, ?, ?, ?, ?)");
     insert.run("AA1234BB", -100111, "https://t.me/c/111/1", "old", "2026-07-13 10:00:00");
     insert.run("KA0001AX", -100111, "https://t.me/c/111/2", "new", "2026-07-13 12:00:00");
     insert.run("AA1234BB", -100111, "https://t.me/c/111/3", "newest", "2026-07-13 13:00:00");
@@ -184,8 +184,8 @@ describe("SqliteIndexStore", () => {
     }));
     store.close();
 
-    const raw = new Database(path, { readonly: true });
-    expect((raw.prepare("SELECT COUNT(*) AS total FROM plate_fts WHERE plate = ?").get("AA1234BB") as { total: number }).total).toBe(1);
+    const raw = new Database(path);
+    expect((raw.query("SELECT COUNT(*) AS total FROM plate_fts WHERE plate = ?").get("AA1234BB") as { total: number }).total).toBe(1);
     raw.close();
     rmSync(directory, { recursive: true, force: true });
   });

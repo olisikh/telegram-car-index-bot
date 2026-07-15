@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
-import { PythonFastPlateOcrAnalyzer, runReaderProcess } from "../src/fast-plate-ocr-analyzer.js";
+import { describe, expect, it, mock } from "bun:test";
+import { PythonFastPlateOcrAnalyzer, runReaderProcess } from "../src/fast-plate-ocr-analyzer";
 
 describe("PythonFastPlateOcrAnalyzer", () => {
   it("runs the detector and FastPlateOCR reader once per source photo and validates its output", async () => {
-    const run = vi.fn().mockResolvedValue('{"plates":["АА 1234 ВВ", "not-a-plate", "2923"]}');
+    const run = mock().mockResolvedValue('{"plates":["АА 1234 ВВ", "not-a-plate", "2923"]}');
     const analyzer = new PythonFastPlateOcrAnalyzer({
       pythonPath: "/venv/bin/python",
       scriptPath: "/project/scripts/detect_and_read_plates.py",
@@ -27,7 +27,7 @@ describe("PythonFastPlateOcrAnalyzer", () => {
   });
 
   it("silently retries alternate profiles only after no valid plate", async () => {
-    const run = vi.fn()
+    const run = mock()
       .mockResolvedValueOnce('{"plates":[],"detections":0,"timings":{"detectionMs":600,"croppingMs":5,"ocrMs":1400}}')
       .mockResolvedValueOnce('{"plates":["AA1234BB"],"timings":{"detectionMs":650,"croppingMs":8,"ocrMs":1500}}')
       .mockResolvedValueOnce('{"plates":["AA1234BB"],"timings":{"detectionMs":700,"croppingMs":9,"ocrMs":1600}}');

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { extractPlates, normalizePlate } from "../src/plates.js";
+import { describe, expect, it } from "bun:test";
+import { extractPlates, normalizePlate } from "../src/plates";
 
 describe("normalizePlate", () => {
   it("normalizes case and Ukrainian lookalike characters in a jammed Ukrainian plate", () => {

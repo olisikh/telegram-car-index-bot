@@ -14,15 +14,15 @@ RUN mkdir -p /models \
     && test -s /models/license-plate-detector.pt \
     && test -s /root/.cache/fast-plate-ocr/cct-s-v2-global-model/cct_s_v2_global.onnx
 
-FROM node:24-bookworm-slim AS node-build
+FROM oven/bun:1-slim AS bun-build
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY tsconfig.json tsconfig.build.json ./
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+COPY tsconfig.json ./
 COPY src ./src
-RUN npm run build && npm prune --omit=dev
+RUN bun run build
 
-FROM node:24-bookworm-slim
+FROM oven/bun:1-slim
 WORKDIR /app
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
@@ -46,9 +46,9 @@ COPY requirements.txt ./
 RUN pip install --upgrade pip \
     && pip install --index-url https://download.pytorch.org/whl/cpu torch==2.0.1 torchvision==0.15.2 \
     && pip install -r requirements.txt
-COPY --from=node-build /app/package.json ./
-COPY --from=node-build /app/node_modules ./node_modules
-COPY --from=node-build /app/dist ./dist
+COPY --from=bun-build /app/package.json ./
+COPY --from=bun-build /app/node_modules ./node_modules
+COPY --from=bun-build /app/dist ./dist
 COPY scripts ./scripts
 COPY --from=model-assets /models/license-plate-detector.pt /app/models/license-plate-detector.pt
 COPY --from=model-assets /root/.cache/fast-plate-ocr /root/.cache/fast-plate-ocr
@@ -56,4 +56,4 @@ RUN mkdir -p /app/data \
     && test -s /app/models/license-plate-detector.pt \
     && test -s /root/.cache/fast-plate-ocr/cct-s-v2-global-model/cct_s_v2_global.onnx
 
-CMD ["node", "dist/index.js"]
+CMD ["bun", "dist/index.js"]

@@ -21,6 +21,7 @@ Required repository-local artifacts:
 Install or recreate them:
 
 ```bash
+bun install
 python3 -m venv .vision-venv
 .vision-venv/bin/python -m pip install --upgrade pip
 .vision-venv/bin/python -m pip install -r requirements.txt
@@ -51,11 +52,11 @@ Replies default to English. `/lang en` and `/lang uk` store a locale per chat in
 ## Verification before deployment
 
 ```bash
-npm ci
-npm test
-npm run typecheck
-npm run lint
-npm run build
+bun install --frozen-lockfile
+bun test
+bun run typecheck
+bun run lint
+bun run build
 ```
 
 Send clear, angled, distant, dark, and multi-car photos in an allow-listed test supergroup. Use `/verbose on` to see the source link, candidate result, and detector/crop/OCR timings. Every validated candidate is indexed immediately, so use a disposable test chat or remove unwanted test records from SQLite afterward.
@@ -72,13 +73,13 @@ It writes operational logs to `data/bot.out.log` and `data/bot.err.log`.
 
 ### Deploy an update
 
-Do not run `npm start` manually while the LaunchAgent is running: two pollers cause Telegram `409 Conflict`.
+Do not run `bun start` manually while the LaunchAgent is running: two pollers cause Telegram `409 Conflict`.
 
 ```bash
 cd ~/telegram-car-index-bot
 git pull --ff-only
-npm ci
-npm test && npm run typecheck && npm run lint && npm run build
+bun install --frozen-lockfile
+bun test && bun run typecheck && bun run lint && bun run build
 launchctl kickstart -k gui/$(id -u)/com.olisikh.bandera-car-index-bot
 launchctl print gui/$(id -u)/com.olisikh.bandera-car-index-bot
 ```

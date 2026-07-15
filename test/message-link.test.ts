@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { messageLink } from "../src/message-link.js";
+import { describe, expect, it } from "bun:test";
+import { messageLink } from "../src/message-link";
 
 describe("messageLink", () => {
   it("creates a direct link for a private supergroup", () => {

@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
-import { recognizedPlates } from "./recognized-plates.js";
-import type { PlateAnalyzer } from "./plate-analyzer.js";
-import type { RecognitionTimings, TimedRecognition } from "./recognition-timings.js";
+import { recognizedPlates } from "./recognized-plates";
+import type { PlateAnalyzer } from "./plate-analyzer";
+import type { RecognitionTimings, TimedRecognition } from "./recognition-timings";
 
 type ReaderRunner = (command: string, args: ReadonlyArray<string>, input: string, timeoutMs: number) => Promise<string>;
 

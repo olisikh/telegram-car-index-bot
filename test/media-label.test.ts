@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { mediaLabel } from "../src/media-label.js";
+import { describe, expect, it } from "bun:test";
+import { mediaLabel } from "../src/media-label";
 
 describe("mediaLabel", () => {
   it("names media in English", () => {

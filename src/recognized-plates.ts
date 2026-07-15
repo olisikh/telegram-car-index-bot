@@ -1,4 +1,4 @@
-import { normalizePlate } from "./plates.js";
+import { normalizePlate } from "./plates";
 
 const normalizeRecognizedPlate = (value: string): string | undefined =>
   normalizePlate(value.replace(/[\s-]/gu, ""));

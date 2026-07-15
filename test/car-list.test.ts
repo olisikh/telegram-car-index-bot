@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import {
   clampPage,
   findCallbackData,
@@ -7,7 +7,7 @@ import {
   pageCount,
   parseListCallback,
   searchCallbackData,
-} from "../src/car-list.js";
+} from "../src/car-list";
 
 describe("car list pagination", () => {
   it("uses ten cars per page", () => {

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { SerialQueue } from "../src/serial-queue.js";
+import { describe, expect, it } from "bun:test";
+import { SerialQueue } from "../src/serial-queue";
 
 describe("SerialQueue", () => {
   it("runs jobs one at a time in submission order", async () => {

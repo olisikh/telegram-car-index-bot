@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import {
   recognitionCrashFeedback,
   recognitionNoPlateFeedback,
   recognitionSuccessFeedback,
   recognitionTimeoutFeedback,
-} from "../src/recognition-feedback.js";
+} from "../src/recognition-feedback";
 
 const photoUrl = "https://t.me/c/123/42";
 

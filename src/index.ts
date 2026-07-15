@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 import "dotenv/config";
 import { Bot, InlineKeyboard } from "grammy";
 import { Effect } from "effect";
-import { chatCommandMenu, groupCommands } from "./commands.js";
-import { PythonFastPlateOcrAnalyzer } from "./fast-plate-ocr-analyzer.js";
+import { chatCommandMenu, groupCommands } from "./commands";
+import { PythonFastPlateOcrAnalyzer } from "./fast-plate-ocr-analyzer";
 import {
   clampPage,
   findCallbackData,
@@ -13,21 +13,21 @@ import {
   pageCount,
   parseListCallback,
   searchCallbackData,
-} from "./car-list.js";
-import { SqliteIndexStore } from "./database.js";
-import { formatFindResult } from "./find-results.js";
-import { DEFAULT_LOCALE, messages, parseLocale, type Locale } from "./i18n.js";
-import { messageLink } from "./message-link.js";
-import { normalizeFindQuery } from "./find-query.js";
-import { processPhotoRecognition } from "./photo-recognition.js";
+} from "./car-list";
+import { SqliteIndexStore } from "./database";
+import { formatFindResult } from "./find-results";
+import { DEFAULT_LOCALE, messages, parseLocale, type Locale } from "./i18n";
+import { messageLink } from "./message-link";
+import { normalizeFindQuery } from "./find-query";
+import { processPhotoRecognition } from "./photo-recognition";
 import {
   recognitionCrashFeedback,
   recognitionNoPlateFeedback,
   recognitionSuccessFeedback,
   recognitionTimeoutFeedback,
-} from "./recognition-feedback.js";
-import { runLongPolling } from "./polling.js";
-import { SerialQueue } from "./serial-queue.js";
+} from "./recognition-feedback";
+import { runLongPolling } from "./polling";
+import { SerialQueue } from "./serial-queue";
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) throw new Error("TELEGRAM_BOT_TOKEN is required");

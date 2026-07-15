@@ -1,5 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
-import { allowedUpdates, nextOffset, runLongPolling } from "../src/polling.js";
+import { describe, expect, it, mock } from "bun:test";
+import { allowedUpdates, nextOffset, runLongPolling } from "../src/polling";
+
+const waitFor = async (assertion: () => void, timeout = 1000): Promise<void> => {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    try {
+      assertion();
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  assertion();
+};
 
 describe("nextOffset", () => {
   it("requests message and callback-query updates", () => {
@@ -17,22 +30,22 @@ describe("nextOffset", () => {
   it("does not request another Telegram batch until the active update completes", async () => {
     let releaseUpdate: (() => void) | undefined;
     const firstUpdate = { update_id: 1 };
-    const getUpdates = vi.fn()
+    const getUpdates = mock()
       .mockResolvedValueOnce([firstUpdate])
       .mockRejectedValueOnce(new Error("stop test loop"));
     const bot = {
-      init: vi.fn().mockResolvedValue(undefined),
+      init: mock().mockResolvedValue(undefined),
       api: {
-        deleteWebhook: vi.fn().mockResolvedValue(true),
+        deleteWebhook: mock().mockResolvedValue(true),
         getUpdates,
       },
-      handleUpdate: vi.fn().mockImplementation(async () => new Promise<void>((resolve) => {
+      handleUpdate: mock().mockImplementation(async () => new Promise<void>((resolve) => {
         releaseUpdate = resolve;
       })),
     };
 
     const poller = runLongPolling(bot as never);
-    await vi.waitFor(() => expect(bot.handleUpdate).toHaveBeenCalledWith(firstUpdate));
+    await waitFor(() => expect(bot.handleUpdate).toHaveBeenCalledWith(firstUpdate));
     expect(getUpdates).toHaveBeenCalledTimes(1);
 
     releaseUpdate?.();

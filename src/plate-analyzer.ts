@@ -1,4 +1,4 @@
-import type { TimedRecognition } from "./recognition-timings.js";
+import type { TimedRecognition } from "./recognition-timings";
 
 export interface PlateAnalyzer {
   readonly analyze: (image: Uint8Array) => Promise<ReadonlyArray<string>>;

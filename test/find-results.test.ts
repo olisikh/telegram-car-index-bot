@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { formatFindResult } from "../src/find-results.js";
+import { describe, expect, it } from "bun:test";
+import { formatFindResult } from "../src/find-results";
 
 const result = {
   plate: "AA1234BB",

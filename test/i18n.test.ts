@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { DEFAULT_LOCALE, messages, parseLocale } from "../src/i18n.js";
+import { describe, expect, it } from "bun:test";
+import { DEFAULT_LOCALE, messages, parseLocale } from "../src/i18n";
 
 describe("i18n", () => {
   it("uses English by default and parses supported two-letter language codes", () => {

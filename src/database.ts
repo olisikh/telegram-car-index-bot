@@ -1,10 +1,10 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import Database from "better-sqlite3";
+import { Database } from "bun:sqlite";
 import { Effect } from "effect";
-import { DEFAULT_LOCALE, type Locale } from "./i18n.js";
-import type { MediaType } from "./media-label.js";
-import type { IndexRecord, IndexStore } from "./indexing.js";
+import { DEFAULT_LOCALE, type Locale } from "./i18n";
+import type { MediaType } from "./media-label";
+import type { IndexRecord, IndexStore } from "./indexing";
 
 export interface SearchResult extends IndexRecord {
   readonly createdAt: string;
@@ -34,12 +34,12 @@ export interface PlateChoicePage {
 }
 
 export class SqliteIndexStore implements IndexStore {
-  private readonly database: Database.Database;
+  private readonly database: Database;
 
   constructor(path: string) {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.database = new Database(path);
-    this.database.pragma("journal_mode = WAL");
+    this.database.exec("PRAGMA journal_mode = WAL");
     this.database.exec(`
       CREATE TABLE IF NOT EXISTS indexed_messages (
         plate TEXT NOT NULL,
@@ -65,7 +65,7 @@ export class SqliteIndexStore implements IndexStore {
       );
       CREATE VIRTUAL TABLE IF NOT EXISTS plate_fts USING fts5(plate, tokenize='trigram');
     `);
-    const columns = this.database.prepare("PRAGMA table_info(indexed_messages)").all() as Array<{ name: string }>;
+    const columns = this.database.query("PRAGMA table_info(indexed_messages)").all() as Array<{ name: string }>;
     if (!columns.some((column) => column.name === "chat_id")) {
       this.database.exec("ALTER TABLE indexed_messages ADD COLUMN chat_id INTEGER NOT NULL DEFAULT 0");
     }
@@ -78,16 +78,16 @@ export class SqliteIndexStore implements IndexStore {
     if (!columns.some((column) => column.name === "media_group_id")) {
       this.database.exec("ALTER TABLE indexed_messages ADD COLUMN media_group_id TEXT");
     }
-    const settingsColumns = this.database.prepare("PRAGMA table_info(chat_recognition_settings)").all() as Array<{ name: string }>;
+    const settingsColumns = this.database.query("PRAGMA table_info(chat_recognition_settings)").all() as Array<{ name: string }>;
     if (!settingsColumns.some((column) => column.name === "locale")) {
       this.database.exec("ALTER TABLE chat_recognition_settings ADD COLUMN locale TEXT NOT NULL DEFAULT 'en' CHECK (locale IN ('en', 'uk'))");
     }
-    const legacyRecords = this.database.prepare(`
+    const legacyRecords = this.database.query(`
       SELECT rowid, message_url AS messageUrl
       FROM indexed_messages
       WHERE chat_id = 0
     `).all() as Array<{ rowid: number; messageUrl: string }>;
-    const updateLegacyChat = this.database.prepare("UPDATE indexed_messages SET chat_id = ? WHERE rowid = ?");
+    const updateLegacyChat = this.database.query("UPDATE indexed_messages SET chat_id = ? WHERE rowid = ?");
     for (const record of legacyRecords) {
       const internalId = /^https:\/\/t\.me\/c\/(\d+)\/\d+$/u.exec(record.messageUrl)?.[1];
       if (internalId) updateLegacyChat.run(Number(`-100${internalId}`), record.rowid);
@@ -111,14 +111,14 @@ export class SqliteIndexStore implements IndexStore {
   }
 
   readonly verboseRecognitionEnabled = (chatId: number): Effect.Effect<boolean> => Effect.sync(() => {
-    const setting = this.database.prepare(`
+    const setting = this.database.query(`
       SELECT verbose FROM chat_recognition_settings WHERE chat_id = ?
-    `).get(chatId) as { verbose: number } | undefined;
+    `).get(chatId) as { verbose: number } | null | undefined;
     return setting?.verbose === 1;
   });
 
   readonly setVerboseRecognition = (chatId: number, enabled: boolean): Effect.Effect<void> => Effect.sync(() => {
-    this.database.prepare(`
+    this.database.query(`
       INSERT INTO chat_recognition_settings (chat_id, verbose)
       VALUES (?, ?)
       ON CONFLICT(chat_id) DO UPDATE SET verbose = excluded.verbose
@@ -126,14 +126,14 @@ export class SqliteIndexStore implements IndexStore {
   });
 
   readonly chatLocale = (chatId: number): Effect.Effect<Locale> => Effect.sync(() => {
-    const setting = this.database.prepare(`
+    const setting = this.database.query(`
       SELECT locale FROM chat_recognition_settings WHERE chat_id = ?
-    `).get(chatId) as { locale: string } | undefined;
+    `).get(chatId) as { locale: string } | null | undefined;
     return setting?.locale === "uk" ? "uk" : DEFAULT_LOCALE;
   });
 
   readonly setChatLocale = (chatId: number, locale: Locale): Effect.Effect<void> => Effect.sync(() => {
-    this.database.prepare(`
+    this.database.query(`
       INSERT INTO chat_recognition_settings (chat_id, locale)
       VALUES (?, ?)
       ON CONFLICT(chat_id) DO UPDATE SET locale = excluded.locale
@@ -141,13 +141,13 @@ export class SqliteIndexStore implements IndexStore {
   });
 
   readonly save = (record: IndexRecord): Effect.Effect<void> => Effect.sync(() => {
-    const insert = this.database.prepare(`
+    const insert = this.database.query(`
       INSERT INTO indexed_messages (plate, chat_id, message_url, message_preview, media_type, media_group_id)
-      VALUES (@plate, @chatId, @messageUrl, @messagePreview, @mediaType, @mediaGroupId)
+      VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT DO NOTHING
-    `).run({ ...record, mediaType: record.mediaType ?? null, mediaGroupId: record.mediaGroupId ?? null });
+    `).run(record.plate, record.chatId, record.messageUrl, record.messagePreview, record.mediaType ?? null, record.mediaGroupId ?? null);
     if (insert.changes > 0) {
-      this.database.prepare(`
+      this.database.query(`
         INSERT INTO plate_fts (plate)
         SELECT ?
         WHERE NOT EXISTS (SELECT 1 FROM plate_fts WHERE plate = ?)
@@ -156,15 +156,15 @@ export class SqliteIndexStore implements IndexStore {
   });
 
   readonly recordMediaGroupMember = (member: MediaGroupMember): Effect.Effect<void> => Effect.sync(() => {
-    this.database.prepare(`
+    this.database.query(`
       INSERT INTO media_group_members (chat_id, media_group_id, message_id, media_type)
-      VALUES (@chatId, @mediaGroupId, @messageId, @mediaType)
+      VALUES (?, ?, ?, ?)
       ON CONFLICT DO NOTHING
-    `).run(member);
+    `).run(member.chatId, member.mediaGroupId, member.messageId, member.mediaType);
   });
 
   readonly find = (plate: string, chatId: number): Effect.Effect<ReadonlyArray<SearchResult>> => Effect.sync(() =>
-    this.database.prepare(`
+    this.database.query(`
       SELECT im.plate, im.chat_id AS chatId, im.message_url AS messageUrl,
              im.message_preview AS messagePreview, im.media_type AS mediaType,
              im.media_group_id AS mediaGroupId, im.created_at AS createdAt,
@@ -182,7 +182,7 @@ export class SqliteIndexStore implements IndexStore {
   );
 
   readonly searchPlates = (query: string, chatId: number): Effect.Effect<ReadonlyArray<SearchResult>> => Effect.sync(() => {
-    const exact = this.database.prepare(`
+    const exact = this.database.query(`
       SELECT im.plate, im.chat_id AS chatId, im.message_url AS messageUrl,
              im.message_preview AS messagePreview, im.media_type AS mediaType,
              im.media_group_id AS mediaGroupId, im.created_at AS createdAt,
@@ -199,7 +199,7 @@ export class SqliteIndexStore implements IndexStore {
     `).all(query, chatId) as ReadonlyArray<SearchResult>;
     if (exact.length > 0) return exact;
 
-    return this.database.prepare(`
+    return this.database.query(`
       SELECT im.plate, im.chat_id AS chatId, im.message_url AS messageUrl,
              im.message_preview AS messagePreview, im.media_type AS mediaType,
              im.media_group_id AS mediaGroupId, im.created_at AS createdAt,
@@ -221,14 +221,14 @@ export class SqliteIndexStore implements IndexStore {
 
   readonly searchPlateChoices = (query: string, chatId: number, limit: number, offset: number): Effect.Effect<PlateChoicePage> => Effect.sync(() => {
     const ftsQuery = query.replace(/"/gu, '""');
-    const total = (this.database.prepare(`
+    const total = (this.database.query(`
       SELECT COUNT(DISTINCT im.plate) AS total
       FROM indexed_messages AS im
       WHERE im.chat_id = ? AND im.plate IN (
         SELECT DISTINCT plate FROM plate_fts WHERE plate_fts MATCH ?
       )
     `).get(chatId, ftsQuery) as { total: number }).total;
-    const plates = this.database.prepare(`
+    const plates = this.database.query(`
       SELECT im.plate
       FROM indexed_messages AS im
       WHERE im.chat_id = ? AND im.plate IN (
@@ -242,12 +242,12 @@ export class SqliteIndexStore implements IndexStore {
   });
 
   readonly listCars = (chatId: number, limit: number, offset: number): Effect.Effect<CarListPage> => Effect.sync(() => {
-    const total = (this.database.prepare(`
+    const total = (this.database.query(`
       SELECT COUNT(DISTINCT plate) AS total
       FROM indexed_messages
       WHERE chat_id = ?
     `).get(chatId) as { total: number }).total;
-    const cars = this.database.prepare(`
+    const cars = this.database.query(`
       SELECT plate, MAX(created_at) AS lastSeen
       FROM indexed_messages
       WHERE chat_id = ?

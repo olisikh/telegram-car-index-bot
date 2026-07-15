@@ -1,8 +1,8 @@
 import { Effect } from "effect";
-import type { IndexStore } from "./indexing.js";
-import type { MediaType } from "./media-label.js";
-import { messageLink } from "./message-link.js";
-import { normalizePlate } from "./plates.js";
+import type { IndexStore } from "./indexing";
+import type { MediaType } from "./media-label";
+import { messageLink } from "./message-link";
+import { normalizePlate } from "./plates";
 
 const LEADING_PLATE_TAG = /^#\s*([A-ZА-ЯІЇЄҐ]{2}\s*\d{4}\s*[A-ZА-ЯІЇЄҐ]{2})/iu;
 

@@ -44,7 +44,7 @@ Recognition runs one photo at a time. `/verbose on` enables per-photo feedback f
 
 ## Local dependencies
 
-For native development, use Node.js 24, Python 3.11 or newer, Git, and a repository-local Python virtual environment. The Docker image uses Node.js 24 and Debian Bookworm's Python. The bot does **not** require Ollama.
+For native development, use [Bun](https://bun.sh), Python 3.11 or newer, Git, and a repository-local Python virtual environment. The Docker image uses Bun and Debian Bookworm's Python. The bot does **not** require Ollama.
 
 ```bash
 python3 -m venv .vision-venv
@@ -73,12 +73,12 @@ PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 ```bash
 cp .env.example .env
 # Set TELEGRAM_BOT_TOKEN and ALLOWED_CHAT_IDS.
-npm install
-npm run build
-npm start
+bun install
+bun run build
+bun start
 ```
 
-For development: `npm run dev`.
+For development: `bun run dev`.
 
 ## Telegram setup
 
@@ -99,8 +99,8 @@ For development: `npm run dev`.
 ## Quality checks
 
 ```bash
-npm test
-npm run typecheck
-npm run lint
-npm run build
+bun test
+bun run typecheck
+bun run lint
+bun run build
 ```

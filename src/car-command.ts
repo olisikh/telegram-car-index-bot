@@ -1,4 +1,4 @@
-import { normalizePlate } from "./plates.js";
+import { normalizePlate } from "./plates";
 
 const CAR_COMMAND = /^\/car(?:@\w+)?\s+(\S+)/iu;
 

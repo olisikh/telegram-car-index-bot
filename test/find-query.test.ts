@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { normalizeFindQuery } from "../src/find-query.js";
+import { describe, expect, it } from "bun:test";
+import { normalizeFindQuery } from "../src/find-query";
 
 describe("normalizeFindQuery", () => {
   it("normalizes Ukrainian lookalikes and removes separators", () => {

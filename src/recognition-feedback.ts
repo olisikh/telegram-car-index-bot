@@ -1,5 +1,5 @@
-import { messages, type Locale } from "./i18n.js";
-import type { RecognitionTimings } from "./recognition-timings.js";
+import { messages, type Locale } from "./i18n";
+import type { RecognitionTimings } from "./recognition-timings";
 
 const stageElapsed = (locale: Locale, milliseconds: number): string => {
   const text = messages(locale);
