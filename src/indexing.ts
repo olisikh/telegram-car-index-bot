@@ -30,7 +30,7 @@ export const indexRecognizedPhotoMessage = (store: IndexStore, message: Recogniz
     store.save({
       plate,
       chatId: message.chatId,
-      messagePreview: "photo",
+      messagePreview: "Фото",
       mediaType: "photo",
       ...(message.mediaGroupId ? { mediaGroupId: message.mediaGroupId } : {}),
       messageUrl: messageLink({

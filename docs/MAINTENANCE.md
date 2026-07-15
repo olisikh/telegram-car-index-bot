@@ -44,7 +44,7 @@ PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 
 `ALLOWED_CHAT_IDS` and `TELEGRAM_BOT_TOKEN` are mandatory. Every validated plate recognized in an allow-listed chat is indexed. `/verbose` controls only recognition feedback in the chat.
 
-Replies default to English. `/lang en` and `/lang uk` store a locale per chat in SQLite; `ua` is accepted as a Ukrainian alias. Deployments upgrading an existing database add the locale column with `en` while preserving `/verbose` state.
+Replies default to English. `/lang en` and `/lang uk` store a locale per chat in SQLite and install a chat-scoped command menu; `ua` is accepted as a Ukrainian alias. Deployments upgrading an existing database add the locale column with `en` while preserving `/verbose` state and historical indexed-message metadata.
 
 `PHOTO_RECOGNITION_RECOVERY_ATTEMPTS` accepts `0`, `1`, or `2`. The default `2` enables both `wide` and `enhanced` recovery profiles after a standard pass with zero detector boxes. Recovery succeeds when the enhanced pass shares at least one validated plate with the wide pass; the analyzer then returns the enhanced pass's complete validated list.
 

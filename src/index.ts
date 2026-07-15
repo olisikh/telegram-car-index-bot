@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import "dotenv/config";
 import { Bot, InlineKeyboard } from "grammy";
 import { Effect } from "effect";
-import { groupCommands } from "./commands.js";
+import { chatCommandMenu, groupCommands } from "./commands.js";
 import { PythonFastPlateOcrAnalyzer } from "./fast-plate-ocr-analyzer.js";
 import {
   clampPage,
@@ -189,6 +189,8 @@ bot.command("lang", async (ctx) => {
     return;
   }
   await Effect.runPromise(database.setChatLocale(ctx.chat.id, locale));
+  const menu = chatCommandMenu(locale, ctx.chat.id);
+  await bot.api.setMyCommands(menu.commands, menu.options);
   await ctx.reply(messages(locale).languageChanged);
 });
 

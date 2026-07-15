@@ -85,7 +85,7 @@ const catalog = {
     milliseconds: (milliseconds) => `${Math.round(milliseconds)} ms`,
   },
   uk: {
-    start: "Готово. Надішли фото авто — бот спробує розпізнати ДНЗ.\nПошук: /find AA1234BB · Список: /list\nСтатус розпізнавання: /verbose on або /verbose off\nМова: /lang en або /lang uk",
+    start: "Готово. Надішліть фото авто — бот спробує розпізнати ДНЗ.\nПошук: /find AA1234BB · Список: /list\nСтатус розпізнавання: /verbose on або /verbose off\nМова: /lang en або /lang uk",
     verboseUsage: "Формат: /verbose on або /verbose off",
     verboseEnabled: "🔔 Детальний статус розпізнавання увімкнено для цього чату.",
     verboseDisabled: "🔕 Детальний статус розпізнавання вимкнено для цього чату.",
@@ -110,7 +110,7 @@ const catalog = {
     },
     nothingFound: (plate) => `Для ${plate} нічого не знайдено.`,
     findResults: (count, plate, links) => `Знайдено ${count} ${ukrainianMessageCount(count)} для ${plate}:\n${links}`,
-    findChoices: (count, query) => `Знайдено ${count} авто для ${query}. Обери ДНЗ:`,
+    findChoices: (count, query) => `Знайдено ${count} авто для ${query}. Оберіть ДНЗ:`,
     carList: (count) => `Авто: ${count}. Від найновіших до найстаріших:`,
     seconds: (milliseconds) => `${decimal("uk", milliseconds / 1_000)} с`,
     milliseconds: (milliseconds) => `${Math.round(milliseconds)} мс`,

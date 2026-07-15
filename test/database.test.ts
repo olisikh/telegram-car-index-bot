@@ -40,6 +40,33 @@ describe("SqliteIndexStore", () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
+  it("preserves historical preview metadata during migration", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "car-index-preview-"));
+    const path = join(directory, "index.db");
+    const legacy = new Database(path);
+    legacy.exec(`
+      CREATE TABLE indexed_messages (
+        plate TEXT NOT NULL,
+        chat_id INTEGER NOT NULL,
+        message_url TEXT NOT NULL,
+        message_preview TEXT NOT NULL,
+        media_type TEXT,
+        media_group_id TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO indexed_messages (plate, chat_id, message_url, message_preview, media_type)
+      VALUES ('AA1234BB', -100111, 'https://t.me/c/111/10', 'Фото', 'photo');
+    `);
+    legacy.close();
+
+    const store = new SqliteIndexStore(path);
+    await expect(Effect.runPromise(store.find("AA1234BB", -100111))).resolves.toMatchObject([
+      { messagePreview: "Фото" },
+    ]);
+    store.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
   it("stores verbose recognition setting independently per chat", async () => {
     const store = new SqliteIndexStore(":memory:");
     await expect(Effect.runPromise(store.verboseRecognitionEnabled(-100111))).resolves.toBe(false);
@@ -87,7 +114,7 @@ describe("SqliteIndexStore", () => {
 
     const store = new SqliteIndexStore(path);
     await expect(Effect.runPromise(store.find("AA1234BB", -1001400317169))).resolves.toMatchObject([
-      { messagePreview: "media" },
+      { messagePreview: "Мультимедіа" },
     ]);
     await expect(Effect.runPromise(store.searchPlateChoices("123", -1001400317169, 10, 0))).resolves.toEqual({
       total: 1,

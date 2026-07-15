@@ -10,3 +10,8 @@ export const groupCommands = (locale: Locale) => {
     { command: "lang", description: descriptions.lang },
   ] as const;
 };
+
+export const chatCommandMenu = (locale: Locale, chatId: number) => ({
+  commands: groupCommands(locale),
+  options: { scope: { type: "chat" as const, chat_id: chatId } },
+});

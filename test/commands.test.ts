@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupCommands } from "../src/commands.js";
+import { chatCommandMenu, groupCommands } from "../src/commands.js";
 
 describe("groupCommands", () => {
   it("advertises English commands by default", () => {
@@ -20,5 +20,12 @@ describe("groupCommands", () => {
       { command: "verbose", description: "Статус розпізнавання фото" },
       { command: "lang", description: "Обрати мову: en або uk" },
     ]);
+  });
+
+  it("builds a chat-scoped menu for the persisted language", () => {
+    expect(chatCommandMenu("uk", -100123)).toEqual({
+      commands: groupCommands("uk"),
+      options: { scope: { type: "chat", chat_id: -100123 } },
+    });
   });
 });

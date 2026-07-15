@@ -115,7 +115,7 @@ Test clear, angled, distant, dark, and multi-car photos. `/verbose` can be disab
 
 `/find` opens messages immediately for one matched plate or shows a paginated plate picker for several matching plates.
 
-English is used by default. Run `/lang uk` for Ukrainian or `/lang en` to switch back. The choice is saved for that chat. `/lang ua` also selects Ukrainian for compatibility.
+English is used by default. Run `/lang uk` for Ukrainian or `/lang en` to switch back. The choice and command menu are saved for that chat. `/lang ua` also selects Ukrainian for compatibility.
 
 ## Keep it running
 

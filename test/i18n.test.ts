@@ -14,7 +14,7 @@ describe("i18n", () => {
 
   it("provides complete English and Ukrainian messages", () => {
     expect(messages("en").start).toContain("Send a car photo");
-    expect(messages("uk").start).toContain("Надішли фото авто");
+    expect(messages("uk").start).toContain("Надішліть фото авто");
     expect(messages("en").nothingFound("AA1234BB")).toBe("Nothing found for AA1234BB.");
     expect(messages("uk").nothingFound("AA1234BB")).toBe("Для AA1234BB нічого не знайдено.");
     expect(messages("en").languageChanged).toBe("Language changed to English.");

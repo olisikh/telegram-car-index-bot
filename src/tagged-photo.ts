@@ -25,7 +25,7 @@ export const indexTaggedMediaReply = (
   return store.save({
     plate,
     chatId: reply.chatId,
-    messagePreview: "media",
+    messagePreview: "Мультимедіа",
     mediaType: reply.mediaType,
     ...(reply.mediaGroupId ? { mediaGroupId: reply.mediaGroupId } : {}),
     messageUrl: messageLink({

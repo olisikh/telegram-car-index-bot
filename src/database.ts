@@ -45,7 +45,7 @@ export class SqliteIndexStore implements IndexStore {
         plate TEXT NOT NULL,
         chat_id INTEGER NOT NULL DEFAULT 0,
         message_url TEXT NOT NULL,
-        message_preview TEXT NOT NULL DEFAULT 'media',
+        message_preview TEXT NOT NULL DEFAULT 'Мультимедіа',
         media_type TEXT,
         media_group_id TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -70,7 +70,7 @@ export class SqliteIndexStore implements IndexStore {
       this.database.exec("ALTER TABLE indexed_messages ADD COLUMN chat_id INTEGER NOT NULL DEFAULT 0");
     }
     if (!columns.some((column) => column.name === "message_preview")) {
-      this.database.exec("ALTER TABLE indexed_messages ADD COLUMN message_preview TEXT NOT NULL DEFAULT 'media'");
+      this.database.exec("ALTER TABLE indexed_messages ADD COLUMN message_preview TEXT NOT NULL DEFAULT 'Мультимедіа'");
     }
     if (!columns.some((column) => column.name === "media_type")) {
       this.database.exec("ALTER TABLE indexed_messages ADD COLUMN media_type TEXT");
@@ -82,7 +82,6 @@ export class SqliteIndexStore implements IndexStore {
     if (!settingsColumns.some((column) => column.name === "locale")) {
       this.database.exec("ALTER TABLE chat_recognition_settings ADD COLUMN locale TEXT NOT NULL DEFAULT 'en' CHECK (locale IN ('en', 'uk'))");
     }
-    this.database.prepare("UPDATE indexed_messages SET message_preview = 'media' WHERE message_preview IN ('Фото', 'Мультимедіа')").run();
     const legacyRecords = this.database.prepare(`
       SELECT rowid, message_url AS messageUrl
       FROM indexed_messages
