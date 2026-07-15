@@ -14,7 +14,11 @@ RUN mkdir -p /models \
     && test -s /models/license-plate-detector.pt \
     && test -s /root/.cache/fast-plate-ocr/cct-s-v2-global-model/cct_s_v2_global.onnx
 
-FROM oven/bun:1-slim AS bun-build
+FROM node:24-bookworm-slim AS bun-build
+RUN apt-get update && apt-get install -y --no-install-recommends curl unzip ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
@@ -22,8 +26,9 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN bun run build
 
-FROM oven/bun:1-slim
+FROM node:24-bookworm-slim
 WORKDIR /app
+COPY --from=bun-build /root/.bun/bin/bun /usr/local/bin/bun
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
