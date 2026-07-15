@@ -18,7 +18,7 @@ import { SqliteIndexStore } from "./database.js";
 import { formatFindResult } from "./find-results.js";
 import { messageLink } from "./message-link.js";
 import { normalizeFindQuery } from "./find-query.js";
-import { processPhotoRecognition, type RecognitionMode } from "./photo-recognition.js";
+import { processPhotoRecognition } from "./photo-recognition.js";
 import {
   recognitionCrashFeedback,
   recognitionNoPlateFeedback,
@@ -40,11 +40,6 @@ if (allowedChats.size === 0) {
   throw new Error("ALLOWED_CHAT_IDS is required to prevent indexing unauthorised chats");
 }
 
-const recognitionModeValue = process.env.PHOTO_RECOGNITION_MODE ?? "shadow";
-if (recognitionModeValue !== "shadow" && recognitionModeValue !== "index") {
-  throw new Error("PHOTO_RECOGNITION_MODE must be shadow or index");
-}
-const recognitionMode: RecognitionMode = recognitionModeValue;
 const fastPlateOcrModel = process.env.FAST_PLATE_OCR_MODEL ?? "cct-s-v2-global-model";
 const recognitionTimeoutMs = Number(process.env.PHOTO_RECOGNITION_TIMEOUT_MS ?? "60000");
 const recoveryAttempts = Number(process.env.PHOTO_RECOGNITION_RECOVERY_ATTEMPTS ?? "2");
@@ -212,7 +207,6 @@ bot.on("message:photo", async (ctx) => {
       download: downloadPhoto,
       analyze: visionAnalyzer.analyze,
       analyzeTimed: visionAnalyzer.analyzeTimed,
-      mode: recognitionMode,
     }, {
       chatId: ctx.chat.id,
       messageId: ctx.message.message_id,
@@ -230,7 +224,7 @@ bot.on("message:photo", async (ctx) => {
     }
     console.info(
       `photo recognition chat=${ctx.chat.id} message=${ctx.message.message_id}`
-      + ` candidates=${plates.length} mode=${recognitionMode}`
+      + ` candidates=${plates.length}`
       + ` detectionMs=${timings.detectionMs ?? "n/a"}`
       + ` croppingMs=${timings.croppingMs ?? "n/a"}`
       + ` ocrMs=${timings.ocrMs ?? "n/a"}`,
@@ -308,5 +302,5 @@ bot.on("callback_query:data", async (ctx) => {
 });
 
 await bot.api.setMyCommands(groupCommands, { scope: { type: "all_group_chats" } });
-console.info(`Bot is running; photo recognition mode=${recognitionMode} pipeline=detector-fast-ocr reader=${activeReader}`);
+console.info(`Bot is running; photo recognition pipeline=detector-fast-ocr reader=${activeReader}`);
 await runLongPolling(bot);

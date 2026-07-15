@@ -16,7 +16,7 @@ Telegram photo update
   -> one-at-a-time SerialQueue
   -> local Python worker: YOLO detector -> RGB crop(s) -> FastPlateOCR
   -> strict JSON parse, normalization, format validation
-  -> shadow observation OR SQLite index
+  -> SQLite index
   -> chat-scoped /find and /list
 ```
 
@@ -38,7 +38,6 @@ Only native Telegram photo updates are analyzed; captions, text, videos, animati
 ## Configuration
 
 ```dotenv
-PHOTO_RECOGNITION_MODE=shadow
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
 PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
@@ -47,7 +46,7 @@ PLATE_DETECTOR_SCRIPT=./scripts/detect_and_read_plates.py
 PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 ```
 
-`shadow` does not insert recognized-plate rows. The process still opens SQLite, runs idempotent schema migrations, and may store per-chat `/verbose` settings. `index` additionally stores normalized, validated plates and source-message metadata.
+Every normalized, validated plate returned by recognition is stored with its chat scope and source-message metadata. `/verbose` changes only chat feedback; it does not control indexing.
 
 `PHOTO_RECOGNITION_RECOVERY_ATTEMPTS` must be `0`, `1`, or `2`; the default is `2`. Recovery starts only when the standard pass reports zero detector boxes. The configured profiles are `standard`, `wide`, and `enhanced`. Recovery succeeds when the enhanced pass shares at least one validated plate with the wide pass; the analyzer then returns the enhanced pass's complete validated list, not only the overlap. The default value `2` is therefore required for a recovery write. If the standard pass reports a detector box but no valid OCR candidate, no recovery profile runs. All enabled passes share one overall timeout.
 

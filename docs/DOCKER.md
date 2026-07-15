@@ -29,7 +29,7 @@ Use the Docker method on Windows; it is simpler than installing Node.js, Python,
    notepad .env
    ```
 
-4. In `.env`, set only the Telegram token, `ALLOWED_CHAT_IDS`, and recognition mode. The Compose file supplies the Linux paths inside the image, so do **not** change `PLATE_DETECTOR_*` paths for Windows.
+4. In `.env`, set the Telegram token and `ALLOWED_CHAT_IDS`. The Compose file supplies the Linux paths inside the image, so do **not** change `PLATE_DETECTOR_*` paths for Windows.
 5. Start it from that folder:
 
    ```powershell

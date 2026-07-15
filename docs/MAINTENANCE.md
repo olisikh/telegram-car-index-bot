@@ -34,7 +34,6 @@ FastPlateOCR downloads its ONNX reader on first native use. The current reader f
 ## Configuration
 
 ```dotenv
-PHOTO_RECOGNITION_MODE=shadow
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
 PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
@@ -43,7 +42,7 @@ PLATE_DETECTOR_SCRIPT=./scripts/detect_and_read_plates.py
 PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 ```
 
-`ALLOWED_CHAT_IDS` and `TELEGRAM_BOT_TOKEN` are mandatory. Use `shadow` to verify real photos without inserting recognized-plate rows; schema migrations and `/verbose` settings still use SQLite. After representative testing, set `PHOTO_RECOGNITION_MODE=index` and restart the service.
+`ALLOWED_CHAT_IDS` and `TELEGRAM_BOT_TOKEN` are mandatory. Every validated plate recognized in an allow-listed chat is indexed. `/verbose` controls only recognition feedback in the chat.
 
 `PHOTO_RECOGNITION_RECOVERY_ATTEMPTS` accepts `0`, `1`, or `2`. The default `2` enables both `wide` and `enhanced` recovery profiles after a standard pass with zero detector boxes. Recovery succeeds when the enhanced pass shares at least one validated plate with the wide pass; the analyzer then returns the enhanced pass's complete validated list.
 
@@ -57,7 +56,7 @@ npm run lint
 npm run build
 ```
 
-Send clear, angled, distant, dark, and multi-car photos in `shadow` mode. Use `/verbose on` in an allow-listed test supergroup to see the source link, candidate result, and detector/crop/OCR timings. Validate exact plate text manually before enabling `index`.
+Send clear, angled, distant, dark, and multi-car photos in an allow-listed test supergroup. Use `/verbose on` to see the source link, candidate result, and detector/crop/OCR timings. Every validated candidate is indexed immediately, so use a disposable test chat or remove unwanted test records from SQLite afterward.
 
 ## macOS LaunchAgent
 
@@ -117,7 +116,7 @@ Protect backups like the primary database: they contain plate numbers and Telegr
 
 - **409 Conflict** — stop manual bot processes; only the LaunchAgent may poll with this token. Revoke the token if an unknown poller persists.
 - **Photo not analyzed** — verify it was sent as a Telegram photo, the chat is allow-listed, Group Privacy is disabled, and inspect `bot.err.log`.
-- **Bad or missed candidate** — return to `shadow`, collect representative source links privately, and benchmark before changing the detector/model/validator.
+- **Bad or missed candidate** — use `/verbose on`, collect representative source links privately, and benchmark before changing the detector/model/validator.
 - **Buttons do nothing** — ensure the poller requests `callback_query` updates.
 
 ## Security hygiene

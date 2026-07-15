@@ -3,15 +3,12 @@ import { indexRecognizedPhotoMessage, type IndexStore } from "./indexing.js";
 import type { PlateAnalyzer } from "./plate-analyzer.js";
 import type { TimedRecognition } from "./recognition-timings.js";
 
-export type RecognitionMode = "shadow" | "index";
-
 export interface PhotoDownloader {
   readonly download: (fileId: string) => Promise<Uint8Array>;
 }
 
 export interface PhotoRecognitionDependencies extends PhotoDownloader, PlateAnalyzer {
   readonly store: IndexStore;
-  readonly mode: RecognitionMode;
 }
 
 export interface IncomingPhoto {
@@ -30,14 +27,12 @@ export const processPhotoRecognition = async (
   const recognition = dependencies.analyzeTimed
     ? await dependencies.analyzeTimed(image)
     : { plates: await dependencies.analyze(image), timings: {} };
-  if (dependencies.mode === "index") {
-    await Effect.runPromise(indexRecognizedPhotoMessage(dependencies.store, {
-      chatId: photo.chatId,
-      messageId: photo.messageId,
-      chatUsername: photo.chatUsername,
-      mediaGroupId: photo.mediaGroupId,
-      plates: recognition.plates,
-    }));
-  }
+  await Effect.runPromise(indexRecognizedPhotoMessage(dependencies.store, {
+    chatId: photo.chatId,
+    messageId: photo.messageId,
+    chatUsername: photo.chatUsername,
+    mediaGroupId: photo.mediaGroupId,
+    plates: recognition.plates,
+  }));
   return recognition;
 };

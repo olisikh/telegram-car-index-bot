@@ -27,7 +27,7 @@ The bot now:
 5. normalizes and strictly validates each candidate before indexing;
 6. stores only the validated plate, chat scope, direct message URL, compact preview, media metadata, and timestamp;
 7. does not store original photos, crops, captions, general chat text, or raw model responses;
-8. supports `shadow` mode for safe accuracy evaluation and `index` mode for production writes;
+8. always indexes every normalized, validated recognition result;
 9. provides chat-scoped `/find`, `/list`, and `/verbose` commands.
 
 ## Constraints retained from the migration

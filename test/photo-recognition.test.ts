@@ -17,7 +17,7 @@ describe("processPhotoRecognition", () => {
     const download = vi.fn().mockResolvedValue(Uint8Array.from([1, 2, 3]));
     const analyze = vi.fn().mockResolvedValue(["AA1234BB", "KA0001AX"]);
 
-    await expect(processPhotoRecognition({ store, download, analyze, mode: "index" }, photo)).resolves.toEqual({
+    await expect(processPhotoRecognition({ store, download, analyze }, photo)).resolves.toEqual({
       plates: ["AA1234BB", "KA0001AX"],
       timings: {},
     });
@@ -27,18 +27,5 @@ describe("processPhotoRecognition", () => {
       { plate: "AA1234BB", chatId: -1001234567890, messagePreview: "Фото", mediaType: "photo", messageUrl: "https://t.me/c/1234567890/42" },
       { plate: "KA0001AX", chatId: -1001234567890, messagePreview: "Фото", mediaType: "photo", messageUrl: "https://t.me/c/1234567890/42" },
     ]);
-  });
-
-  it("does not write records in shadow mode", async () => {
-    const save = vi.fn(() => Effect.void);
-    const store: IndexStore = { save };
-
-    await expect(processPhotoRecognition({
-      store,
-      download: async () => Uint8Array.from([1]),
-      analyze: async () => ["AA1234BB"],
-      mode: "shadow",
-    }, photo)).resolves.toEqual({ plates: ["AA1234BB"], timings: {} });
-    expect(save).not.toHaveBeenCalled();
   });
 });

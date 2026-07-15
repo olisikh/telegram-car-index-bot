@@ -72,8 +72,6 @@ TELEGRAM_BOT_TOKEN=PASTE_YOUR_BOT_TOKEN_HERE
 ALLOWED_CHAT_IDS=-1001234567890
 DATABASE_PATH=./data/index.db
 
-# Start safely: test recognition without inserting recognized-plate rows.
-PHOTO_RECOGNITION_MODE=shadow
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
 PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
@@ -99,13 +97,9 @@ npm run build
 npm start
 ```
 
-In the target chat, send `/verbose on`, then send a normal car photo as a **photo**, not a file. The bot will show the recognition result and detector/crop/OCR timing. In `shadow` mode it does not insert recognized-plate rows; SQLite still stores schema state and the per-chat verbose setting.
+In the target chat, send `/verbose on`, then send a normal car photo as a **photo**, not a file. The bot will show the recognition result and detector/crop/OCR timing. Every validated plate is indexed immediately.
 
-Test clear, angled, distant, dark, and multi-car photos. When you trust the recognition results, change this one value and restart the service:
-
-```dotenv
-PHOTO_RECOGNITION_MODE=index
-```
+Test clear, angled, distant, dark, and multi-car photos. `/verbose` can be disabled after checking the results; indexing remains enabled.
 
 ## Using the bot
 
@@ -129,6 +123,6 @@ On macOS, use the provided LaunchAgent procedure in [MAINTENANCE.md](MAINTENANCE
 | --- | --- |
 | Bot receives commands but not photos | Group Privacy disabled, then remove/re-add the bot. |
 | Bot does not start | Python path, worker script, and detector model path exist. |
-| No plates saved | Confirm `PHOTO_RECOGNITION_MODE=index` only after testing. |
+| No plates saved | Use `/verbose on`, send a native Telegram photo, and verify that recognition returns a validated plate. |
 | `/list` buttons do nothing | Check the running process/logs; the bot must request callback updates. |
-| Recognition is wrong | Return to `shadow`, use `/verbose on`, and compare representative photos before changing validation or models. |
+| Recognition is wrong | Use `/verbose on` and compare representative photos before changing validation or models. |

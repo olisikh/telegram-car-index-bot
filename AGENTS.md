@@ -12,7 +12,7 @@ The active runtime stores normalized plate data, source-chat scope, message URL,
 - `scripts/detect_and_read_plates.py` — the single in-memory YOLO + FastPlateOCR worker.
 - `src/fast-plate-ocr-analyzer.ts` — bounded Python-worker adapter.
 - `src/plate-analyzer.ts` / `src/recognized-plates.ts` — analyzer contract and strict candidate parsing.
-- `src/photo-recognition.ts` — in-memory processing and `shadow`/`index` policy.
+- `src/photo-recognition.ts` — in-memory processing and unconditional indexing of validated plates.
 - `src/plates.ts` — normalization and supported-country validation.
 - `src/database.ts` — SQLite schema, FTS plate search, and chat-scoped queries.
 - `src/car-list.ts`, `src/find-query.ts`, `src/find-results.ts` — search/list interaction helpers.
@@ -45,7 +45,6 @@ The Docker image supplies equivalent files at `/opt/venv/bin/python`, `/app/scri
 Core variables:
 
 ```dotenv
-PHOTO_RECOGNITION_MODE=shadow|index
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
 PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=0|1|2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model

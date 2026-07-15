@@ -23,12 +23,7 @@ Send a photo containing a visible registration plate. Captions and ordinary text
 
 ## Recognition and safety
 
-`PHOTO_RECOGNITION_MODE` controls writes:
-
-| Mode | Behavior |
-| --- | --- |
-| `shadow` | Analyze locally without inserting recognized-plate rows. SQLite still opens for schema migration and per-chat settings such as `/verbose`. |
-| `index` | Store validated recognized plates with their source-message link. |
+Every validated plate recognized in an allow-listed chat is stored with its source-message link.
 
 The sole pipeline is conservative:
 
@@ -61,7 +56,6 @@ FastPlateOCR downloads its ONNX reader on its first native invocation. The curre
 Example `.env`:
 
 ```dotenv
-PHOTO_RECOGNITION_MODE=shadow
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
 PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
@@ -69,8 +63,6 @@ PLATE_DETECTOR_PYTHON=./.vision-venv/bin/python
 PLATE_DETECTOR_SCRIPT=./scripts/detect_and_read_plates.py
 PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 ```
-
-After testing representative photos in `shadow` mode, change only `PHOTO_RECOGNITION_MODE=index` and restart the service.
 
 ## Run locally
 
@@ -90,7 +82,7 @@ For development: `npm run dev`.
 2. Add it to the intended **supergroup**; clickable source links require a supergroup.
 3. Disable BotFather **Group Privacy** so the bot receives ordinary photo updates. Re-add the bot if privacy was changed after it joined.
 4. Add the numeric supergroup ID to `ALLOWED_CHAT_IDS`.
-5. Test in `shadow` mode before enabling `index`.
+5. Send representative photos and use `/verbose on` to inspect recognition results and timings.
 
 ## Documentation
 
