@@ -1,8 +1,7 @@
 services:
   bot:
     image: ${BOT_IMAGE:-ghcr.io/olisikh/telegram-car-index-bot:latest}
-    build:
-      context: .
+    pull_policy: ${BOT_PULL_POLICY:-always}
     env_file:
       - .env
     environment:
