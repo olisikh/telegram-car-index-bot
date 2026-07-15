@@ -88,3 +88,5 @@ BOT_IMAGE=telegram-car-index-bot:local docker compose up -d
 ```
 
 The GitHub Actions `Publish container image` workflow is configured to build and publish multi-architecture (`linux/amd64`, `linux/arm64`) images to `ghcr.io/olisikh/telegram-car-index-bot` for `v*` tags and manual workflow dispatches. If `docker compose pull` returns `401 Unauthorized`, authenticate with `docker login ghcr.io` using a token with `read:packages`.
+
+The detector and OCR model files are architecture-neutral. The Dockerfile downloads them once in a `$BUILDPLATFORM` stage and copies them into both target images, avoiding an emulated ARM64 Hugging Face download. GitHub Actions also exports BuildKit layers to the GitHub Actions cache so unchanged dependency and model layers can be reused by later builds.

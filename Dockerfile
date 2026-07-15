@@ -1,5 +1,19 @@
 # syntax=docker/dockerfile:1
 
+FROM --platform=$BUILDPLATFORM python:3.11-slim AS model-assets
+ENV PIP_NO_CACHE_DIR=1 \
+    HF_HUB_DISABLE_XET=1
+RUN python3 -m venv /opt/model-venv
+ENV PATH=/opt/model-venv/bin:$PATH
+RUN pip install --upgrade pip \
+    && pip install huggingface-hub==1.23.0 'fast-plate-ocr[onnx]==1.1.0'
+RUN mkdir -p /models \
+    && python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='yasirfaizahmed/license-plate-object-detection', filename='best.pt', local_dir='/models')" \
+    && mv /models/best.pt /models/license-plate-detector.pt \
+    && python -c "from fast_plate_ocr import LicensePlateRecognizer; LicensePlateRecognizer('cct-s-v2-global-model')" \
+    && test -s /models/license-plate-detector.pt \
+    && test -s /root/.cache/fast-plate-ocr/cct-s-v2-global-model/cct_s_v2_global.onnx
+
 FROM node:24-bookworm-slim AS node-build
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -36,9 +50,10 @@ COPY --from=node-build /app/package.json ./
 COPY --from=node-build /app/node_modules ./node_modules
 COPY --from=node-build /app/dist ./dist
 COPY scripts ./scripts
-RUN mkdir -p /app/models /app/data \
-    && python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='yasirfaizahmed/license-plate-object-detection', filename='best.pt', local_dir='/app/models')" \
-    && mv /app/models/best.pt /app/models/license-plate-detector.pt \
-    && python -c "from fast_plate_ocr import LicensePlateRecognizer; LicensePlateRecognizer('cct-s-v2-global-model')"
+COPY --from=model-assets /models/license-plate-detector.pt /app/models/license-plate-detector.pt
+COPY --from=model-assets /root/.cache/fast-plate-ocr /root/.cache/fast-plate-ocr
+RUN mkdir -p /app/data \
+    && test -s /app/models/license-plate-detector.pt \
+    && test -s /root/.cache/fast-plate-ocr/cct-s-v2-global-model/cct_s_v2_global.onnx
 
 CMD ["node", "dist/index.js"]
