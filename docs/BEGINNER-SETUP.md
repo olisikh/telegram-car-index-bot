@@ -8,9 +8,9 @@ This guide installs the bot on macOS, Windows, or Linux.
 Telegram photo -> local YOLO detector -> local FastPlateOCR reader -> local SQLite index
 ```
 
-No cloud OCR service or Ollama installation is required. Source photos and crops stay in memory while one image is processed.
+No cloud OCR service or Ollama installation is required. Telegram supplies each source photo through the Bot API; the active runtime then keeps the downloaded bytes and crops in memory while processing the image locally.
 
-Recommended: 16 GB RAM and at least 10 GB free disk. The Python environment is the largest component; the FastPlateOCR reader download is about 5 MB.
+The current detector file is about 6.2 MB and the current FastPlateOCR reader is about 5.3 MB. Python, Torch, and the remaining packages account for most of the installation and image size. This repository does not publish a measured minimum RAM or disk requirement.
 
 ## 1. Prepare Telegram
 
@@ -18,7 +18,7 @@ Recommended: 16 GB RAM and at least 10 GB free disk. The Python environment is t
 2. Run `/setprivacy`, choose the bot, and choose **Disable**.
 3. Add the bot to the intended Telegram **supergroup**. Supergroups are required for clickable `/find` links.
 4. If privacy was disabled after adding the bot, remove it and add it again.
-5. Obtain the group ID (normally `-100...`) with a utility such as `@RawDataBot` and save it for configuration.
+5. Send `/start` in the group, then obtain the group ID (normally `-100...`) from your own bot's `getUpdates` response before starting its long poller. Do not add a third-party ID bot to a private group. Inspect only `message.chat.id`, `message.chat.type`, and `message.chat.title`; do not save the rest of the update payload.
 
 Keep the bot token secret.
 
@@ -42,7 +42,7 @@ cp .env.example .env
 npm install
 python3 -m venv .vision-venv
 .vision-venv/bin/python -m pip install --upgrade pip
-.vision-venv/bin/python -m pip install ultralytics huggingface_hub 'fast-plate-ocr[onnx]'
+.vision-venv/bin/python -m pip install -r requirements.txt
 mkdir -p models
 .vision-venv/bin/hf download yasirfaizahmed/license-plate-object-detection best.pt --local-dir models
 mv models/best.pt models/license-plate-detector.pt
@@ -55,7 +55,7 @@ Copy-Item .env.example .env
 npm install
 py -3 -m venv .vision-venv
 .\.vision-venv\Scripts\python.exe -m pip install --upgrade pip
-.\.vision-venv\Scripts\python.exe -m pip install ultralytics huggingface_hub 'fast-plate-ocr[onnx]'
+.\.vision-venv\Scripts\python.exe -m pip install -r requirements.txt
 New-Item -ItemType Directory -Force models
 .\.vision-venv\Scripts\hf.exe download yasirfaizahmed/license-plate-object-detection best.pt --local-dir models
 Move-Item models\best.pt models\license-plate-detector.pt
@@ -65,16 +65,17 @@ FastPlateOCR downloads its small reader model the first time a photo is recogniz
 
 ## 5. Configure `.env`
 
-Set your real token and group ID:
+Set your real token and group ID. If the ID is still unknown, first set the token, send `/start` in the group, and query `getUpdates` once while no bot process is running. Calling `getUpdates` while the service is running creates a competing poller.
 
 ```dotenv
 TELEGRAM_BOT_TOKEN=PASTE_YOUR_BOT_TOKEN_HERE
 ALLOWED_CHAT_IDS=-1001234567890
 DATABASE_PATH=./data/index.db
 
-# Start safely: test recognition without database writes.
+# Start safely: test recognition without inserting recognized-plate rows.
 PHOTO_RECOGNITION_MODE=shadow
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
+PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
 
 # macOS / Linux paths:
@@ -94,10 +95,11 @@ For multiple groups, separate IDs with commas.
 ## 6. Test before indexing
 
 ```bash
+npm run build
 npm start
 ```
 
-In the target chat, send `/verbose on`, then send a normal car photo as a **photo**, not a file. The bot will show the recognition result and detector/crop/OCR timing. In `shadow` mode it writes nothing to the database.
+In the target chat, send `/verbose on`, then send a normal car photo as a **photo**, not a file. The bot will show the recognition result and detector/crop/OCR timing. In `shadow` mode it does not insert recognized-plate rows; SQLite still stores schema state and the per-chat verbose setting.
 
 Test clear, angled, distant, dark, and multi-car photos. When you trust the recognition results, change this one value and restart the service:
 
@@ -119,7 +121,7 @@ PHOTO_RECOGNITION_MODE=index
 
 ## Keep it running
 
-On macOS, use the provided LaunchAgent procedure in [MAINTENANCE.md](MAINTENANCE.md). On Windows or Linux, use Task Scheduler or a system service to run `npm start` from the project folder. Never run two copies of the bot with the same token: Telegram will stop one poller with a `409 Conflict` error.
+On macOS, use the provided LaunchAgent procedure in [MAINTENANCE.md](MAINTENANCE.md). On Windows or Linux, run `npm run build` after each source update, then use Task Scheduler or a system service to run `npm start` from the project folder. Never run two copies of the bot with the same token: Telegram will stop one poller with a `409 Conflict` error.
 
 ## Troubleshooting
 

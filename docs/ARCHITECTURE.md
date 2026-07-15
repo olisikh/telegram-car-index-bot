@@ -20,7 +20,9 @@ Telegram photo update
   -> chat-scoped /find and /list
 ```
 
-The Python worker receives source image bytes over stdin and returns JSON over stdout. It creates no temporary photo or crop files. It detects up to five plate regions per photo.
+The Python worker receives base64-encoded source image bytes inside JSON over stdin and returns JSON over stdout. It creates no temporary photo or crop files. YOLO may report more detections, but only the five highest-confidence regions are cropped and sent to OCR.
+
+`src/index.ts` is the runtime composition root. Legacy command/caption indexing helpers that remain elsewhere in `src/` are not registered by the active bot and do not make captions, ordinary text, video, animation, or document updates indexable.
 
 ## Commands
 
@@ -38,13 +40,18 @@ Only native Telegram photo updates are analyzed; captions, text, videos, animati
 ```dotenv
 PHOTO_RECOGNITION_MODE=shadow
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
+PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
 PLATE_DETECTOR_PYTHON=./.vision-venv/bin/python
 PLATE_DETECTOR_SCRIPT=./scripts/detect_and_read_plates.py
 PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 ```
 
-`shadow` performs no database writes. `index` stores only normalized, validated plates and source-message metadata. When the standard profile finds no detector crop, the bot silently runs a wider lower-confidence pass and an enhanced larger-crop pass. A recovered plate is accepted only when both recovery passes agree; normal detections never receive a guess-based retry. All passes share the same overall timeout. The detector Python executable, script, and detector model are mandatory at startup.
+`shadow` does not insert recognized-plate rows. The process still opens SQLite, runs idempotent schema migrations, and may store per-chat `/verbose` settings. `index` additionally stores normalized, validated plates and source-message metadata.
+
+`PHOTO_RECOGNITION_RECOVERY_ATTEMPTS` must be `0`, `1`, or `2`; the default is `2`. Recovery starts only when the standard pass reports zero detector boxes. The configured profiles are `standard`, `wide`, and `enhanced`. Recovery succeeds when the enhanced pass shares at least one validated plate with the wide pass; the analyzer then returns the enhanced pass's complete validated list, not only the overlap. The default value `2` is therefore required for a recovery write. If the standard pass reports a detector box but no valid OCR candidate, no recovery profile runs. All enabled passes share one overall timeout.
+
+The detector Python executable, worker script, and detector model must exist at startup.
 
 ## Validation and feedback
 
@@ -56,7 +63,7 @@ Verbose feedback is per-chat and off by default. It reports safe outcome categor
 
 `indexed_messages` stores the normalized plate, chat ID, message URL, limited media metadata, and creation time. SQLite search uses a trigram FTS index over plate values only. No downloaded media or full caption/message body is stored.
 
-Every query and write is scoped by `chat_id`. Source links require a supergroup and are usable only by members who can access the source group.
+Every source record and user-facing search/list operation is scoped by `chat_id`. The FTS table contains distinct normalized plate tokens without message content; every FTS-backed result query joins back to `indexed_messages` and filters by `chat_id`. Source links require a supergroup and are usable only by members who can access the source group.
 
 ## Reliability
 

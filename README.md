@@ -2,7 +2,7 @@
 
 A privacy-conscious Telegram bot for allow-listed auto-service groups. It analyzes **photo messages only** with one local pipeline: **YOLO plate detection → in-memory crop → FastPlateOCR**. It indexes strictly validated vehicle plates and links users to the original Telegram message.
 
-Downloaded photos, crops, captions, and general chat text are not persisted. Image bytes exist only in memory while one local recognition job runs.
+The active runtime does not persist downloaded photos, crops, captions, or general chat text. Image bytes exist only in memory while one local recognition job runs.
 
 For a new installation, start with the [Beginner setup guide](docs/BEGINNER-SETUP.md).
 
@@ -27,15 +27,17 @@ Send a photo containing a visible registration plate. Captions and ordinary text
 
 | Mode | Behavior |
 | --- | --- |
-| `shadow` | Analyze locally without adding records to SQLite. |
+| `shadow` | Analyze locally without inserting recognized-plate rows. SQLite still opens for schema migration and per-chat settings such as `/verbose`. |
 | `index` | Store validated recognized plates with their source-message link. |
 
 The sole pipeline is conservative:
 
-1. A local YOLO model detects up to five confident plate regions.
-2. The Python worker enlarges crops and passes RGB pixels to local FastPlateOCR.
+1. A local YOLO model detects plate regions and selects at most five highest-confidence regions for OCR.
+2. The Python worker enlarges those crops and passes RGB pixels to local FastPlateOCR.
 3. TypeScript parses the returned JSON, normalizes Ukrainian/Latin lookalikes, and validates every candidate against supported formats.
 4. Invalid, malformed, or empty results are never indexed.
+
+By default, a standard pass that finds no detector boxes triggers `wide` and `enhanced` recovery passes. Recovery succeeds when the enhanced pass shares at least one validated plate with the wide pass. The current analyzer then returns the enhanced pass's complete validated list, not only the overlapping plates. If the standard pass finds a box but OCR cannot validate its text, the bot does not guess with recovery profiles.
 
 Supported formats include Ukraine (all-Latin civilian series and four-digit National Police plates), Poland, Germany, Lithuania, Romania, Slovakia, Hungary, and Czechia.
 
@@ -43,18 +45,18 @@ Recognition runs one photo at a time. `/verbose on` enables per-photo feedback f
 
 ## Local dependencies
 
-The bot requires Node.js 22+, Python 3.11+, Git, a local Python virtual environment, the YOLO detector model, and FastPlateOCR. It does **not** require Ollama.
+For native development, use Node.js 24, Python 3.11 or newer, Git, and a repository-local Python virtual environment. The Docker image uses Node.js 24 and Debian Bookworm's Python. The bot does **not** require Ollama.
 
 ```bash
 python3 -m venv .vision-venv
 .vision-venv/bin/python -m pip install --upgrade pip
-.vision-venv/bin/python -m pip install ultralytics huggingface_hub 'fast-plate-ocr[onnx]'
+.vision-venv/bin/python -m pip install -r requirements.txt
 mkdir -p models
 .vision-venv/bin/hf download yasirfaizahmed/license-plate-object-detection best.pt --local-dir models
 mv models/best.pt models/license-plate-detector.pt
 ```
 
-FastPlateOCR downloads its approximately 5 MB ONNX reader on its first local invocation. The detector, reader, and source image handling are all local.
+FastPlateOCR downloads its ONNX reader on its first native invocation. The current reader file is about 5.3 MB and the current detector is about 6.2 MB; Python, Torch, and other dependencies account for most of the installation size. Telegram still supplies the source photo through the Bot API; after that download, detection and OCR run locally.
 
 Example `.env`:
 
@@ -76,6 +78,7 @@ After testing representative photos in `shadow` mode, change only `PHOTO_RECOGNI
 cp .env.example .env
 # Set TELEGRAM_BOT_TOKEN and ALLOWED_CHAT_IDS.
 npm install
+npm run build
 npm start
 ```
 
@@ -103,4 +106,5 @@ For development: `npm run dev`.
 npm test
 npm run typecheck
 npm run lint
+npm run build
 ```

@@ -23,26 +23,29 @@ Install or recreate them:
 ```bash
 python3 -m venv .vision-venv
 .vision-venv/bin/python -m pip install --upgrade pip
-.vision-venv/bin/python -m pip install ultralytics huggingface_hub 'fast-plate-ocr[onnx]'
+.vision-venv/bin/python -m pip install -r requirements.txt
 mkdir -p models
 .vision-venv/bin/hf download yasirfaizahmed/license-plate-object-detection best.pt --local-dir models
 mv models/best.pt models/license-plate-detector.pt
 ```
 
-FastPlateOCR downloads its small ONNX reader on first use. It reads the local YOLO crops and never receives a cloud request.
+FastPlateOCR downloads its ONNX reader on first native use. The current reader file is about 5.3 MB and the current detector is about 6.2 MB. It reads local YOLO crops and never receives a cloud OCR request.
 
 ## Configuration
 
 ```dotenv
 PHOTO_RECOGNITION_MODE=shadow
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
+PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
 PLATE_DETECTOR_PYTHON=./.vision-venv/bin/python
 PLATE_DETECTOR_SCRIPT=./scripts/detect_and_read_plates.py
 PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 ```
 
-`ALLOWED_CHAT_IDS` and `TELEGRAM_BOT_TOKEN` are mandatory. Use `shadow` to verify real photos without writes. After representative testing, set `PHOTO_RECOGNITION_MODE=index` and restart the agent.
+`ALLOWED_CHAT_IDS` and `TELEGRAM_BOT_TOKEN` are mandatory. Use `shadow` to verify real photos without inserting recognized-plate rows; schema migrations and `/verbose` settings still use SQLite. After representative testing, set `PHOTO_RECOGNITION_MODE=index` and restart the service.
+
+`PHOTO_RECOGNITION_RECOVERY_ATTEMPTS` accepts `0`, `1`, or `2`. The default `2` enables both `wide` and `enhanced` recovery profiles after a standard pass with zero detector boxes. Recovery succeeds when the enhanced pass shares at least one validated plate with the wide pass; the analyzer then returns the enhanced pass's complete validated list.
 
 ## Verification before deployment
 
@@ -51,9 +54,10 @@ npm ci
 npm test
 npm run typecheck
 npm run lint
+npm run build
 ```
 
-Send clear, angled, distant, dark, and multi-car photos in `shadow` mode. Use `/verbose on` in a private test chat to see source link, candidate result, and detector/crop/OCR timings. Validate exact plate text manually before enabling `index`.
+Send clear, angled, distant, dark, and multi-car photos in `shadow` mode. Use `/verbose on` in an allow-listed test supergroup to see the source link, candidate result, and detector/crop/OCR timings. Validate exact plate text manually before enabling `index`.
 
 ## macOS LaunchAgent
 
@@ -73,7 +77,7 @@ Do not run `npm start` manually while the LaunchAgent is running: two pollers ca
 cd ~/telegram-car-index-bot
 git pull --ff-only
 npm ci
-npm test && npm run typecheck && npm run lint
+npm test && npm run typecheck && npm run lint && npm run build
 launchctl kickstart -k gui/$(id -u)/com.olisikh.bandera-car-index-bot
 launchctl print gui/$(id -u)/com.olisikh.bandera-car-index-bot
 ```

@@ -1,8 +1,8 @@
 # Docker deployment
 
-The project ships as one self-contained image: Node.js, compiled bot, Python, YOLO detector, FastPlateOCR, the plate-detector weights, and the OCR model are included. It needs no Ollama, Python installation, or model download on the target machine.
+The project ships as one self-contained image: Node.js, compiled bot, Python, YOLO detector, FastPlateOCR, the plate-detector weights, and the OCR model are included. It needs no Ollama, host Python installation, or runtime model download on the target machine. Telegram photo downloads still use the Bot API; detector and OCR inference stay inside the container.
 
-The only persistent state is the named Docker volume `car-index-data`, which contains SQLite and operational logs. Source photos and crops remain in memory only.
+The named Docker volume `car-index-data` persists `/app/data`, including SQLite and its WAL/SHM files. Application stdout and stderr are handled by Docker's logging driver and are viewed with `docker compose logs`; they are not files in the named volume. The active runtime keeps source photos and crops in memory only.
 
 ## Windows laptop: recommended method
 
@@ -38,7 +38,7 @@ Use the Docker method on Windows; it is simpler than installing Node.js, Python,
    docker compose ps
    ```
 
-This is CPU-only: no NVIDIA driver, CUDA, WSL GPU setup, Node.js, or Python installation is required. A laptop with 16 GB RAM is recommended; allocate at least 6 GB to Docker Desktop/WSL if its resource limits were customized.
+This image is CPU-only: no NVIDIA driver, CUDA, WSL GPU setup, Node.js, or Python installation is required on the host. This repository does not publish a measured minimum RAM allocation; if Docker Desktop has a custom memory cap, recognition must be tested under that cap.
 
 Docker uses a named Linux volume for the database rather than a Windows folder mount, avoiding Windows-file-system performance and permission issues.
 
@@ -76,7 +76,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Docker retains the `car-index-data` volume across image upgrades. Do **not** use `docker compose down -v` unless intentionally deleting the plate index and logs.
+Docker retains the `car-index-data` volume across image upgrades. Do **not** use `docker compose down -v` unless intentionally deleting the SQLite index and per-chat settings.
 
 ## Local image build
 
@@ -87,4 +87,4 @@ docker build -t telegram-car-index-bot:local .
 BOT_IMAGE=telegram-car-index-bot:local docker compose up -d
 ```
 
-The GitHub Actions `Publish container image` workflow builds and publishes multi-architecture (`linux/amd64`, `linux/arm64`) images to `ghcr.io/olisikh/telegram-car-index-bot` for `v*` tags.
+The GitHub Actions `Publish container image` workflow is configured to build and publish multi-architecture (`linux/amd64`, `linux/arm64`) images to `ghcr.io/olisikh/telegram-car-index-bot` for `v*` tags and manual workflow dispatches. If `docker compose pull` returns `401 Unauthorized`, authenticate with `docker login ghcr.io` using a token with `read:packages`.
