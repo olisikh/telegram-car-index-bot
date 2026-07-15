@@ -7,8 +7,8 @@ describe("carMessagePreview", () => {
       .toBe("maintenance complete");
   });
 
-  it("uses Мультимедіа when a media command has no note", () => {
-    expect(carMessagePreview("/car AA1234BB", true)).toBe("Мультимедіа");
+  it("stores a language-neutral media marker when a command has no note", () => {
+    expect(carMessagePreview("/car AA1234BB", true)).toBe("media");
   });
 
   it("truncates a note to the display-safe limit", () => {

@@ -31,6 +31,7 @@ The Python worker receives base64-encoded source image bytes inside JSON over st
 | `/find <plate>` | Show source-photo messages for one plate, or a paginated plate picker for a 3+ character fragment matching several plates. | Current chat only |
 | `/list` | Show unique plates, newest first, ten per page. | Current chat only |
 | `/verbose on` / `/verbose off` | Toggle per-photo recognition feedback. | Current chat only |
+| `/lang en` / `/lang uk` | Persist the reply language; `ua` is accepted as a Ukrainian alias. | Current chat only |
 | `/start` | Show brief guidance. | Current allowed chat |
 
 Only native Telegram photo updates are analyzed; captions, text, videos, animations, and documents are ignored.
@@ -48,6 +49,8 @@ PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 
 Every normalized, validated plate returned by recognition is stored with its chat scope and source-message metadata. `/verbose` changes only chat feedback; it does not control indexing.
 
+English is the default reply language. `src/i18n.ts` provides one typed catalog for English and Ukrainian, including command descriptions, search/list text, media labels, recognition feedback, and duration formatting. `chat_recognition_settings.locale` persists `en` or `uk` independently per chat; existing databases migrate to `en` without changing their verbose setting.
+
 `PHOTO_RECOGNITION_RECOVERY_ATTEMPTS` must be `0`, `1`, or `2`; the default is `2`. Recovery starts only when the standard pass reports zero detector boxes. The configured profiles are `standard`, `wide`, and `enhanced`. Recovery succeeds when the enhanced pass shares at least one validated plate with the wide pass; the analyzer then returns the enhanced pass's complete validated list, not only the overlap. The default value `2` is therefore required for a recovery write. If the standard pass reports a detector box but no valid OCR candidate, no recovery profile runs. All enabled passes share one overall timeout.
 
 The detector Python executable, worker script, and detector model must exist at startup.
@@ -60,7 +63,7 @@ Verbose feedback is per-chat and off by default. It reports safe outcome categor
 
 ## Data and privacy
 
-`indexed_messages` stores the normalized plate, chat ID, message URL, limited media metadata, and creation time. SQLite search uses a trigram FTS index over plate values only. No downloaded media or full caption/message body is stored.
+`indexed_messages` stores the normalized plate, chat ID, message URL, limited language-neutral media metadata, and creation time. `chat_recognition_settings` stores the per-chat verbose flag and locale. SQLite search uses a trigram FTS index over plate values only. No downloaded media or full caption/message body is stored.
 
 Every source record and user-facing search/list operation is scoped by `chat_id`. The FTS table contains distinct normalized plate tokens without message content; every FTS-backed result query joins back to `indexed_messages` and filters by `chat_id`. Source links require a supergroup and are usable only by members who can access the source group.
 

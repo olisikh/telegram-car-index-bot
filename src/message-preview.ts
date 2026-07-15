@@ -12,5 +12,5 @@ const truncate = (value: string): string => {
 export const carMessagePreview = (text: string, hasMedia: boolean): string => {
   const note = text.replace(CAR_COMMAND_WITH_PLATE, "").replace(/\s+/gu, " ").trim();
   if (note) return truncate(note);
-  return hasMedia ? "Мультимедіа" : "Без опису";
+  return hasMedia ? "media" : "";
 };

@@ -9,34 +9,37 @@ import {
 const photoUrl = "https://t.me/c/123/42";
 
 describe("recognition feedback", () => {
-  it("links the photo, plate result, and elapsed time on success", () => {
-    expect(recognitionSuccessFeedback(photoUrl, ["AE1131YF", "KA0001AX"], 15_430)).toBe(
-      '✅ <a href="https://t.me/c/123/42">Фото</a> — ДНЗ: <code>AE1131YF</code>, <code>KA0001AX</code>\n⏱ 15.4 с',
+  it("renders English feedback by locale", () => {
+    expect(recognitionSuccessFeedback("en", photoUrl, ["AE1131YF", "KA0001AX"], 15_430)).toBe(
+      '✅ <a href="https://t.me/c/123/42">Photo</a> — Plate: <code>AE1131YF</code>, <code>KA0001AX</code>\n⏱ 15.4 s',
+    );
+    expect(recognitionNoPlateFeedback("en", photoUrl, 1_000)).toBe(
+      '⚠️ <a href="https://t.me/c/123/42">Photo</a> — plate not recognized.\n⏱ 1.0 s',
     );
   });
 
-  it("shows detector, crop, and OCR timings when the analyzer provides them", () => {
-    expect(recognitionSuccessFeedback(photoUrl, ["AE1131YF"], 15_430, {
+  it("renders Ukrainian feedback by locale", () => {
+    expect(recognitionSuccessFeedback("uk", photoUrl, ["AE1131YF"], 15_430)).toBe(
+      '✅ <a href="https://t.me/c/123/42">Фото</a> — ДНЗ: <code>AE1131YF</code>\n⏱ 15,4 с',
+    );
+  });
+
+  it("shows localized detector, crop, and OCR timings", () => {
+    expect(recognitionSuccessFeedback("en", photoUrl, ["AE1131YF"], 15_430, {
       detectionMs: 82,
       croppingMs: 7,
       ocrMs: 15_341,
     })).toBe(
-      '✅ <a href="https://t.me/c/123/42">Фото</a> — ДНЗ: <code>AE1131YF</code>\n⏱ 15.4 с - 🕵️‍♂️ 82 мс ✂️ 7 мс 👁️ 15.3 с',
-    );
-  });
-
-  it("reports no readable plate with its photo link and elapsed time", () => {
-    expect(recognitionNoPlateFeedback(photoUrl, 1_000)).toBe(
-      '⚠️ <a href="https://t.me/c/123/42">Фото</a> — ДНЗ не розпізнано.\n⏱ 1.0 с',
+      '✅ <a href="https://t.me/c/123/42">Photo</a> — Plate: <code>AE1131YF</code>\n⏱ 15.4 s - 🕵️‍♂️ 82 ms ✂️ 7 ms 👁️ 15.3 s',
     );
   });
 
   it("reports timeout and crash outcomes without exposing internal errors", () => {
-    expect(recognitionTimeoutFeedback(photoUrl, 60_000)).toBe(
-      '⌛ <a href="https://t.me/c/123/42">Фото</a> — час аналізу вичерпано.\n⏱ 60.0 с',
+    expect(recognitionTimeoutFeedback("en", photoUrl, 60_000)).toBe(
+      '⌛ <a href="https://t.me/c/123/42">Photo</a> — analysis timed out.\n⏱ 60.0 s',
     );
-    expect(recognitionCrashFeedback(photoUrl, 2_500)).toBe(
-      '❌ <a href="https://t.me/c/123/42">Фото</a> — помилка аналізу.\n⏱ 2.5 с',
+    expect(recognitionCrashFeedback("uk", photoUrl, 2_500)).toBe(
+      '❌ <a href="https://t.me/c/123/42">Фото</a> — помилка аналізу.\n⏱ 2,5 с',
     );
   });
 });

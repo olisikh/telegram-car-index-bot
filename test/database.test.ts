@@ -7,6 +7,39 @@ import { describe, expect, it } from "vitest";
 import { SqliteIndexStore } from "../src/database.js";
 
 describe("SqliteIndexStore", () => {
+  it("stores language independently per chat and defaults to English", async () => {
+    const store = new SqliteIndexStore(":memory:");
+    await expect(Effect.runPromise(store.chatLocale(-100111))).resolves.toBe("en");
+    await Effect.runPromise(store.setChatLocale(-100111, "uk"));
+    await expect(Effect.runPromise(store.chatLocale(-100111))).resolves.toBe("uk");
+    await expect(Effect.runPromise(store.chatLocale(-100222))).resolves.toBe("en");
+    await Effect.runPromise(store.setChatLocale(-100111, "en"));
+    await expect(Effect.runPromise(store.chatLocale(-100111))).resolves.toBe("en");
+    store.close();
+  });
+
+  it("migrates existing chat settings to English without losing verbose state", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "car-index-settings-"));
+    const path = join(directory, "index.db");
+    const legacy = new Database(path);
+    legacy.exec(`
+      CREATE TABLE chat_recognition_settings (
+        chat_id INTEGER PRIMARY KEY,
+        verbose INTEGER NOT NULL DEFAULT 0 CHECK (verbose IN (0, 1))
+      );
+      INSERT INTO chat_recognition_settings (chat_id, verbose) VALUES (-100111, 1);
+    `);
+    legacy.close();
+
+    const store = new SqliteIndexStore(path);
+    await expect(Effect.runPromise(store.chatLocale(-100111))).resolves.toBe("en");
+    await expect(Effect.runPromise(store.verboseRecognitionEnabled(-100111))).resolves.toBe(true);
+    await Effect.runPromise(store.setChatLocale(-100111, "uk"));
+    await expect(Effect.runPromise(store.chatLocale(-100111))).resolves.toBe("uk");
+    store.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
   it("stores verbose recognition setting independently per chat", async () => {
     const store = new SqliteIndexStore(":memory:");
     await expect(Effect.runPromise(store.verboseRecognitionEnabled(-100111))).resolves.toBe(false);
@@ -54,7 +87,7 @@ describe("SqliteIndexStore", () => {
 
     const store = new SqliteIndexStore(path);
     await expect(Effect.runPromise(store.find("AA1234BB", -1001400317169))).resolves.toMatchObject([
-      { messagePreview: "Мультимедіа" },
+      { messagePreview: "media" },
     ]);
     await expect(Effect.runPromise(store.searchPlateChoices("123", -1001400317169, 10, 0))).resolves.toEqual({
       total: 1,

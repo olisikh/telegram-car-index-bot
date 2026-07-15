@@ -24,8 +24,8 @@ describe("processPhotoRecognition", () => {
     expect(download).toHaveBeenCalledWith("largest-photo-file");
     expect(analyze).toHaveBeenCalledWith(Uint8Array.from([1, 2, 3]));
     expect(saved).toEqual([
-      { plate: "AA1234BB", chatId: -1001234567890, messagePreview: "Фото", mediaType: "photo", messageUrl: "https://t.me/c/1234567890/42" },
-      { plate: "KA0001AX", chatId: -1001234567890, messagePreview: "Фото", mediaType: "photo", messageUrl: "https://t.me/c/1234567890/42" },
+      { plate: "AA1234BB", chatId: -1001234567890, messagePreview: "photo", mediaType: "photo", messageUrl: "https://t.me/c/1234567890/42" },
+      { plate: "KA0001AX", chatId: -1001234567890, messagePreview: "photo", mediaType: "photo", messageUrl: "https://t.me/c/1234567890/42" },
     ]);
   });
 });

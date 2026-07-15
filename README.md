@@ -17,9 +17,13 @@ Send a photo containing a visible registration plate. Captions and ordinary text
 /list
 /verbose on
 /verbose off
+/lang en
+/lang uk
 ```
 
 `/find` accepts a full plate or a 3–10 character fragment and always stays within the current chat. One matched plate opens its message list immediately; several matches show a paginated plate picker. `/list` shows ten recently seen unique plates per page. Each result links to the source photo and displays its Kyiv date/time.
+
+Bot replies default to English. `/lang en` and `/lang uk` persist the selected language independently for each chat; `/lang ua` is accepted as a compatibility alias for Ukrainian. User-facing text lives in the typed `src/i18n.ts` catalog rather than command handlers.
 
 ## Recognition and safety
 

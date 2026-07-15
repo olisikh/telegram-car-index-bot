@@ -16,6 +16,7 @@ The active runtime stores normalized plate data, source-chat scope, message URL,
 - `src/plates.ts` — normalization and supported-country validation.
 - `src/database.ts` — SQLite schema, FTS plate search, and chat-scoped queries.
 - `src/car-list.ts`, `src/find-query.ts`, `src/find-results.ts` — search/list interaction helpers.
+- `src/i18n.ts` — typed English/Ukrainian user-facing text and locale parsing.
 - `test/` — Vitest unit and migration tests.
 
 ## Non-negotiable rules
@@ -29,6 +30,7 @@ The active runtime stores normalized plate data, source-chat scope, message URL,
 7. The recognition worker runs serially and Telegram polling waits for it. Do not introduce parallel inference without a measured resource plan.
 8. Supergroups are required for durable clickable source links.
 9. Treat `src/index.ts` as the runtime source of truth. Legacy helper modules and tests for command, caption, tag, video, or document indexing are not wired into the active bot.
+10. Keep user-facing strings in `src/i18n.ts`; English is the default and Ukrainian uses locale code `uk`.
 
 ## Configuration
 

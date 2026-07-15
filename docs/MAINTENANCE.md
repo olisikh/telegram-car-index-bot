@@ -44,6 +44,8 @@ PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 
 `ALLOWED_CHAT_IDS` and `TELEGRAM_BOT_TOKEN` are mandatory. Every validated plate recognized in an allow-listed chat is indexed. `/verbose` controls only recognition feedback in the chat.
 
+Replies default to English. `/lang en` and `/lang uk` store a locale per chat in SQLite; `ua` is accepted as a Ukrainian alias. Deployments upgrading an existing database add the locale column with `en` while preserving `/verbose` state.
+
 `PHOTO_RECOGNITION_RECOVERY_ATTEMPTS` accepts `0`, `1`, or `2`. The default `2` enables both `wide` and `enhanced` recovery profiles after a standard pass with zero detector boxes. Recovery succeeds when the enhanced pass shares at least one validated plate with the wide pass; the analyzer then returns the enhanced pass's complete validated list.
 
 ## Verification before deployment
@@ -97,7 +99,7 @@ Logs must not contain image bytes, captions, full model output, or tokens.
 1. Bot belongs to the intended supergroup.
 2. Group Privacy is disabled so normal photo updates arrive.
 3. Group ID is in `ALLOWED_CHAT_IDS`.
-4. Command menu contains `/find`, `/list`, `/verbose`.
+4. Command menu contains `/find`, `/list`, `/verbose`, and `/lang` with English and Ukrainian descriptions.
 5. Detector Python, script, and model pass the startup existence check.
 6. FastPlateOCR is installed in that Python environment.
 

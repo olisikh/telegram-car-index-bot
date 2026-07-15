@@ -1,4 +1,5 @@
 import type { SearchResult } from "./database.js";
+import { messages, type Locale } from "./i18n.js";
 
 const escapeHtml = (value: string): string => value
   .replace(/&/gu, "&amp;")
@@ -23,5 +24,5 @@ const photoPostedAt = (createdAt: string): string => {
   return `${parts.day}.${parts.month}.${parts.year} ${parts.hour}:${parts.minute}`;
 };
 
-export const formatFindResult = (result: SearchResult, index: number): string =>
-  `${index}. ${escapeHtml(result.plate)} · <a href="${escapeHtml(result.messageUrl)}">лінк</a> — ${photoPostedAt(result.createdAt)}`;
+export const formatFindResult = (locale: Locale, result: SearchResult, index: number): string =>
+  `${index}. ${escapeHtml(result.plate)} · <a href="${escapeHtml(result.messageUrl)}">${messages(locale).link}</a> — ${photoPostedAt(result.createdAt)}`;

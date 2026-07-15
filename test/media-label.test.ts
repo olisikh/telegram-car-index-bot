@@ -2,20 +2,19 @@ import { describe, expect, it } from "vitest";
 import { mediaLabel } from "../src/media-label.js";
 
 describe("mediaLabel", () => {
-  it("names a single photo", () => {
-    expect(mediaLabel("photo")).toBe("Фото");
+  it("names media in English", () => {
+    expect(mediaLabel("en", "photo")).toBe("Photo");
+    expect(mediaLabel("en", "video")).toBe("Video");
+    expect(mediaLabel("en", "photo,video")).toBe("Photo and Video");
   });
 
-  it("names a single video", () => {
-    expect(mediaLabel("video")).toBe("Відео");
+  it("names media in Ukrainian", () => {
+    expect(mediaLabel("uk", "photo")).toBe("Фото");
+    expect(mediaLabel("uk", "video")).toBe("Відео");
+    expect(mediaLabel("uk", "photo,video")).toBe("Фото і Відео");
   });
 
-  it("names a mixed photo and video album", () => {
-    expect(mediaLabel("photo,video")).toBe("Фото і Відео");
-  });
-
-  it("does not label an unknown or missing media type", () => {
-    expect(mediaLabel(undefined)).toBeUndefined();
-    expect(mediaLabel("document")).toBeUndefined();
+  it("returns undefined without a recognized media type", () => {
+    expect(mediaLabel("en")).toBeUndefined();
   });
 });

@@ -28,7 +28,7 @@ The bot now:
 6. stores only the validated plate, chat scope, direct message URL, compact preview, media metadata, and timestamp;
 7. does not store original photos, crops, captions, general chat text, or raw model responses;
 8. always indexes every normalized, validated recognition result;
-9. provides chat-scoped `/find`, `/list`, and `/verbose` commands.
+9. provides chat-scoped `/find`, `/list`, `/verbose`, and `/lang` commands with English-default and Ukrainian replies.
 
 ## Constraints retained from the migration
 

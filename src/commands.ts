@@ -1,6 +1,12 @@
-export const groupCommands = [
-  { command: "start", description: "Показати інструкцію" },
-  { command: "find", description: "Знайти фото за ДНЗ" },
-  { command: "list", description: "Список авто" },
-  { command: "verbose", description: "Статус розпізнавання фото" },
-] as const;
+import { messages, type Locale } from "./i18n.js";
+
+export const groupCommands = (locale: Locale) => {
+  const descriptions = messages(locale).commandDescriptions;
+  return [
+    { command: "start", description: descriptions.start },
+    { command: "find", description: descriptions.find },
+    { command: "list", description: descriptions.list },
+    { command: "verbose", description: descriptions.verbose },
+    { command: "lang", description: descriptions.lang },
+  ] as const;
+};

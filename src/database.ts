@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import Database from "better-sqlite3";
 import { Effect } from "effect";
+import { DEFAULT_LOCALE, type Locale } from "./i18n.js";
 import type { MediaType } from "./media-label.js";
 import type { IndexRecord, IndexStore } from "./indexing.js";
 
@@ -44,7 +45,7 @@ export class SqliteIndexStore implements IndexStore {
         plate TEXT NOT NULL,
         chat_id INTEGER NOT NULL DEFAULT 0,
         message_url TEXT NOT NULL,
-        message_preview TEXT NOT NULL DEFAULT 'Мультимедіа',
+        message_preview TEXT NOT NULL DEFAULT 'media',
         media_type TEXT,
         media_group_id TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -59,7 +60,8 @@ export class SqliteIndexStore implements IndexStore {
       );
       CREATE TABLE IF NOT EXISTS chat_recognition_settings (
         chat_id INTEGER PRIMARY KEY,
-        verbose INTEGER NOT NULL DEFAULT 0 CHECK (verbose IN (0, 1))
+        verbose INTEGER NOT NULL DEFAULT 0 CHECK (verbose IN (0, 1)),
+        locale TEXT NOT NULL DEFAULT 'en' CHECK (locale IN ('en', 'uk'))
       );
       CREATE VIRTUAL TABLE IF NOT EXISTS plate_fts USING fts5(plate, tokenize='trigram');
     `);
@@ -68,7 +70,7 @@ export class SqliteIndexStore implements IndexStore {
       this.database.exec("ALTER TABLE indexed_messages ADD COLUMN chat_id INTEGER NOT NULL DEFAULT 0");
     }
     if (!columns.some((column) => column.name === "message_preview")) {
-      this.database.exec("ALTER TABLE indexed_messages ADD COLUMN message_preview TEXT NOT NULL DEFAULT 'Мультимедіа'");
+      this.database.exec("ALTER TABLE indexed_messages ADD COLUMN message_preview TEXT NOT NULL DEFAULT 'media'");
     }
     if (!columns.some((column) => column.name === "media_type")) {
       this.database.exec("ALTER TABLE indexed_messages ADD COLUMN media_type TEXT");
@@ -76,7 +78,11 @@ export class SqliteIndexStore implements IndexStore {
     if (!columns.some((column) => column.name === "media_group_id")) {
       this.database.exec("ALTER TABLE indexed_messages ADD COLUMN media_group_id TEXT");
     }
-    this.database.prepare("UPDATE indexed_messages SET message_preview = 'Мультимедіа' WHERE message_preview = 'Фото'").run();
+    const settingsColumns = this.database.prepare("PRAGMA table_info(chat_recognition_settings)").all() as Array<{ name: string }>;
+    if (!settingsColumns.some((column) => column.name === "locale")) {
+      this.database.exec("ALTER TABLE chat_recognition_settings ADD COLUMN locale TEXT NOT NULL DEFAULT 'en' CHECK (locale IN ('en', 'uk'))");
+    }
+    this.database.prepare("UPDATE indexed_messages SET message_preview = 'media' WHERE message_preview IN ('Фото', 'Мультимедіа')").run();
     const legacyRecords = this.database.prepare(`
       SELECT rowid, message_url AS messageUrl
       FROM indexed_messages
@@ -118,6 +124,21 @@ export class SqliteIndexStore implements IndexStore {
       VALUES (?, ?)
       ON CONFLICT(chat_id) DO UPDATE SET verbose = excluded.verbose
     `).run(chatId, enabled ? 1 : 0);
+  });
+
+  readonly chatLocale = (chatId: number): Effect.Effect<Locale> => Effect.sync(() => {
+    const setting = this.database.prepare(`
+      SELECT locale FROM chat_recognition_settings WHERE chat_id = ?
+    `).get(chatId) as { locale: string } | undefined;
+    return setting?.locale === "uk" ? "uk" : DEFAULT_LOCALE;
+  });
+
+  readonly setChatLocale = (chatId: number, locale: Locale): Effect.Effect<void> => Effect.sync(() => {
+    this.database.prepare(`
+      INSERT INTO chat_recognition_settings (chat_id, locale)
+      VALUES (?, ?)
+      ON CONFLICT(chat_id) DO UPDATE SET locale = excluded.locale
+    `).run(chatId, locale);
   });
 
   readonly save = (record: IndexRecord): Effect.Effect<void> => Effect.sync(() => {

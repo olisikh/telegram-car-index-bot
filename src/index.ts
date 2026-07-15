@@ -16,6 +16,7 @@ import {
 } from "./car-list.js";
 import { SqliteIndexStore } from "./database.js";
 import { formatFindResult } from "./find-results.js";
+import { DEFAULT_LOCALE, messages, parseLocale, type Locale } from "./i18n.js";
 import { messageLink } from "./message-link.js";
 import { normalizeFindQuery } from "./find-query.js";
 import { processPhotoRecognition } from "./photo-recognition.js";
@@ -73,20 +74,22 @@ const allowed = (chatId: number): boolean => allowedChats.has(String(chatId));
 
 const chatUsername = (chat: { username?: string }): string | undefined => chat.username;
 
-const exactFindReplyText = async (plate: string, chatId: number): Promise<string> => {
+const exactFindReplyText = async (locale: Locale, plate: string, chatId: number): Promise<string> => {
+  const text = messages(locale);
   const results = await Effect.runPromise(database.find(plate, chatId));
-  if (results.length === 0) return `Для ${plate} нічого не знайдено.`;
-  const links = results.map((result, index) => formatFindResult(result, index + 1));
-  return `Знайдено ${results.length} повідомлень для ${plate}:\n${links.join("\n")}`;
+  if (results.length === 0) return text.nothingFound(plate);
+  const links = results.map((result, index) => formatFindResult(locale, result, index + 1));
+  return text.findResults(results.length, plate, links.join("\n"));
 };
 
-const findView = async (query: string, chatId: number, requestedPage = 0): Promise<{
+const findView = async (locale: Locale, query: string, chatId: number, requestedPage = 0): Promise<{
   readonly text: string;
   readonly keyboard?: InlineKeyboard;
 }> => {
+  const text = messages(locale);
   const normalizedQuery = normalizeFindQuery(query);
   if (!normalizedQuery || normalizedQuery.length < 3) {
-    return { text: "Пошук за номером: введіть від 3 до 10 символів." };
+    return { text: text.findUsage };
   }
 
   const initial = await Effect.runPromise(database.searchPlateChoices(
@@ -95,8 +98,8 @@ const findView = async (query: string, chatId: number, requestedPage = 0): Promi
     LIST_PAGE_SIZE,
     requestedPage * LIST_PAGE_SIZE,
   ));
-  if (initial.total === 0) return { text: `Для ${normalizedQuery} нічого не знайдено.` };
-  if (initial.total === 1) return { text: await exactFindReplyText(initial.plates[0], chatId) };
+  if (initial.total === 0) return { text: text.nothingFound(normalizedQuery) };
+  if (initial.total === 1) return { text: await exactFindReplyText(locale, initial.plates[0], chatId) };
 
   const page = clampPage(requestedPage, initial.total);
   const result = page === requestedPage
@@ -116,12 +119,12 @@ const findView = async (query: string, chatId: number, requestedPage = 0): Promi
     if (page < pages - 1) keyboard.text("›", searchCallbackData(normalizedQuery, page + 1));
   }
   return {
-    text: `Знайдено ${result.total} авто для ${normalizedQuery}. Обери ДНЗ:`,
+    text: text.findChoices(result.total, normalizedQuery),
     keyboard,
   };
 };
 
-const listView = async (chatId: number, requestedPage: number): Promise<{
+const listView = async (locale: Locale, chatId: number, requestedPage: number): Promise<{
   readonly text: string;
   readonly keyboard: InlineKeyboard;
 } | undefined> => {
@@ -140,7 +143,7 @@ const listView = async (chatId: number, requestedPage: number): Promise<{
     if (page < pages - 1) keyboard.text("›", listCallbackData(page + 1));
   }
   return {
-    text: `Авто: ${result.total}. Від найновіших до найстаріших:`,
+    text: messages(locale).carList(result.total),
     keyboard,
   };
 };
@@ -173,21 +176,36 @@ bot.use(async (ctx, next) => {
 
 bot.command("start", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  await ctx.reply("Готово. Надішли фото авто — бот спробує розпізнати ДНЗ.\nПошук: /find AA1234BB · Список: /list\nСтатус: /verbose on або /verbose off");
+  const locale = await Effect.runPromise(database.chatLocale(ctx.chat.id));
+  await ctx.reply(messages(locale).start);
+});
+
+bot.command("lang", async (ctx) => {
+  if (!allowed(ctx.chat.id)) return;
+  const locale = parseLocale(ctx.match);
+  if (!locale) {
+    const currentLocale = await Effect.runPromise(database.chatLocale(ctx.chat.id));
+    await ctx.reply(messages(currentLocale).languageUsage);
+    return;
+  }
+  await Effect.runPromise(database.setChatLocale(ctx.chat.id, locale));
+  await ctx.reply(messages(locale).languageChanged);
 });
 
 bot.command("verbose", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
+  const locale = await Effect.runPromise(database.chatLocale(ctx.chat.id));
+  const text = messages(locale);
   const value = ctx.match.trim().toLowerCase();
   if (value !== "on" && value !== "off") {
-    await ctx.reply("Формат: /verbose on або /verbose off");
+    await ctx.reply(text.verboseUsage);
     return;
   }
   const enabled = value === "on";
   await Effect.runPromise(database.setVerboseRecognition(ctx.chat.id, enabled));
   await ctx.reply(enabled
-    ? "🔔 Детальний статус розпізнавання увімкнено для цього чату."
-    : "🔕 Детальний статус розпізнавання вимкнено для цього чату.");
+    ? text.verboseEnabled
+    : text.verboseDisabled);
 });
 
 bot.on("message:photo", async (ctx) => {
@@ -217,9 +235,10 @@ bot.on("message:photo", async (ctx) => {
     const { plates, timings } = recognition;
     const verbose = await Effect.runPromise(database.verboseRecognitionEnabled(ctx.chat.id));
     if (verbose) {
+      const locale = await Effect.runPromise(database.chatLocale(ctx.chat.id));
       const feedback = plates.length > 0
-        ? recognitionSuccessFeedback(sourcePhotoUrl, plates, Date.now() - startedAt, timings)
-        : recognitionNoPlateFeedback(sourcePhotoUrl, Date.now() - startedAt, timings);
+        ? recognitionSuccessFeedback(locale, sourcePhotoUrl, plates, Date.now() - startedAt, timings)
+        : recognitionNoPlateFeedback(locale, sourcePhotoUrl, Date.now() - startedAt, timings);
       await ctx.reply(feedback, { parse_mode: "HTML", link_preview_options: { is_disabled: true } });
     }
     console.info(
@@ -232,9 +251,10 @@ bot.on("message:photo", async (ctx) => {
   } catch (error) {
     const verbose = await Effect.runPromise(database.verboseRecognitionEnabled(ctx.chat.id));
     if (verbose) {
+      const locale = await Effect.runPromise(database.chatLocale(ctx.chat.id));
       const feedback = error instanceof Error && error.name === "TimeoutError"
-        ? recognitionTimeoutFeedback(sourcePhotoUrl, Date.now() - startedAt)
-        : recognitionCrashFeedback(sourcePhotoUrl, Date.now() - startedAt);
+        ? recognitionTimeoutFeedback(locale, sourcePhotoUrl, Date.now() - startedAt)
+        : recognitionCrashFeedback(locale, sourcePhotoUrl, Date.now() - startedAt);
       await ctx.reply(feedback, { parse_mode: "HTML", link_preview_options: { is_disabled: true } });
     }
     console.error(
@@ -246,9 +266,10 @@ bot.on("message:photo", async (ctx) => {
 
 bot.command("list", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
-  const view = await listView(ctx.chat.id, 0);
+  const locale = await Effect.runPromise(database.chatLocale(ctx.chat.id));
+  const view = await listView(locale, ctx.chat.id, 0);
   if (!view) {
-    await ctx.reply("Ще немає проіндексованих авто.");
+    await ctx.reply(messages(locale).noIndexedCars);
     return;
   }
   await ctx.reply(view.text, { reply_markup: view.keyboard });
@@ -256,8 +277,9 @@ bot.command("list", async (ctx) => {
 
 bot.command("find", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
+  const locale = await Effect.runPromise(database.chatLocale(ctx.chat.id));
   const query = ctx.match.trim();
-  const view = await findView(query, ctx.chat.id);
+  const view = await findView(locale, query, ctx.chat.id);
   await ctx.reply(view.text, {
     parse_mode: "HTML",
     reply_markup: view.keyboard,
@@ -273,16 +295,18 @@ bot.on("callback_query:data", async (ctx) => {
     return;
   }
   if (action.kind === "find") {
+    const locale = await Effect.runPromise(database.chatLocale(chat.id));
     await ctx.answerCallbackQuery();
     await ctx.deleteMessage();
-    await ctx.reply(await exactFindReplyText(action.plate, chat.id), {
+    await ctx.reply(await exactFindReplyText(locale, action.plate, chat.id), {
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },
     });
     return;
   }
   if (action.kind === "search") {
-    const view = await findView(action.query, chat.id, action.page);
+    const locale = await Effect.runPromise(database.chatLocale(chat.id));
+    const view = await findView(locale, action.query, chat.id, action.page);
     await ctx.answerCallbackQuery();
     await ctx.editMessageText(view.text, {
       parse_mode: "HTML",
@@ -292,15 +316,17 @@ bot.on("callback_query:data", async (ctx) => {
     return;
   }
 
-  const view = await listView(chat.id, action.page);
+  const locale = await Effect.runPromise(database.chatLocale(chat.id));
+  const view = await listView(locale, chat.id, action.page);
   await ctx.answerCallbackQuery();
   if (!view) {
-    await ctx.editMessageText("Ще немає проіндексованих авто.");
+    await ctx.editMessageText(messages(locale).noIndexedCars);
     return;
   }
   await ctx.editMessageText(view.text, { reply_markup: view.keyboard });
 });
 
-await bot.api.setMyCommands(groupCommands, { scope: { type: "all_group_chats" } });
+await bot.api.setMyCommands(groupCommands(DEFAULT_LOCALE), { scope: { type: "all_group_chats" } });
+await bot.api.setMyCommands(groupCommands("uk"), { scope: { type: "all_group_chats" }, language_code: "uk" });
 console.info(`Bot is running; photo recognition pipeline=detector-fast-ocr reader=${activeReader}`);
 await runLongPolling(bot);
