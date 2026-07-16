@@ -72,11 +72,17 @@ Production uses `com.olisikh.bandera-car-index-bot` at:
 ~/Library/LaunchAgents/com.olisikh.bandera-car-index-bot.plist
 ```
 
+It invokes Bun directly as:
+
+```text
+/etc/profiles/per-user/olisikh/bin/bun src/index.ts
+```
+
 It writes operational logs to `data/bot.out.log` and `data/bot.err.log`.
 
 ### Deploy an update
 
-Do not run `bun start` manually while the LaunchAgent is running: two pollers cause Telegram `409 Conflict`.
+Do not run `bun src/index.ts` (or `bun start`) manually while the LaunchAgent is running: two pollers cause Telegram `409 Conflict`.
 
 ```bash
 cd ~/telegram-car-index-bot
