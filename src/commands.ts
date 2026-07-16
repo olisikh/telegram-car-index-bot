@@ -7,6 +7,7 @@ export const groupCommands = (locale: Locale) => {
     { command: "find", description: descriptions.find },
     { command: "list", description: descriptions.list },
     { command: "verbose", description: descriptions.verbose },
+    { command: "collect", description: descriptions.collect },
     { command: "lang", description: descriptions.lang },
   ] as const;
 };

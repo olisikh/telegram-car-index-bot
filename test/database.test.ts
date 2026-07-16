@@ -34,6 +34,7 @@ describe("SqliteIndexStore", () => {
     const store = new SqliteIndexStore(path);
     await expect(Effect.runPromise(store.chatLocale(-100111))).resolves.toBe("en");
     await expect(Effect.runPromise(store.verboseRecognitionEnabled(-100111))).resolves.toBe(true);
+    await expect(Effect.runPromise(store.collectionEnabled(-100111))).resolves.toBe(true);
     await Effect.runPromise(store.setChatLocale(-100111, "uk"));
     await expect(Effect.runPromise(store.chatLocale(-100111))).resolves.toBe("uk");
     store.close();
@@ -75,6 +76,17 @@ describe("SqliteIndexStore", () => {
     await expect(Effect.runPromise(store.verboseRecognitionEnabled(-100222))).resolves.toBe(false);
     await Effect.runPromise(store.setVerboseRecognition(-100111, false));
     await expect(Effect.runPromise(store.verboseRecognitionEnabled(-100111))).resolves.toBe(false);
+    store.close();
+  });
+
+  it("collects crops by default and persists the per-chat opt-out", async () => {
+    const store = new SqliteIndexStore(":memory:");
+    await expect(Effect.runPromise(store.collectionEnabled(-100111))).resolves.toBe(true);
+    await Effect.runPromise(store.setCollectionEnabled(-100111, false));
+    await expect(Effect.runPromise(store.collectionEnabled(-100111))).resolves.toBe(false);
+    await expect(Effect.runPromise(store.collectionEnabled(-100222))).resolves.toBe(true);
+    await Effect.runPromise(store.setCollectionEnabled(-100111, true));
+    await expect(Effect.runPromise(store.collectionEnabled(-100111))).resolves.toBe(true);
     store.close();
   });
 

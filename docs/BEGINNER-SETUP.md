@@ -8,7 +8,7 @@ This guide installs the bot on macOS, Windows, or Linux.
 Telegram photo -> local YOLO detector -> local FastPlateOCR reader -> local SQLite index
 ```
 
-No cloud OCR service or Ollama installation is required. Telegram supplies each source photo through the Bot API; the active runtime then keeps the downloaded bytes and crops in memory while processing the image locally.
+No cloud OCR service or Ollama installation is required. Telegram supplies each source photo through the Bot API; the active runtime then keeps the downloaded bytes in memory while processing locally. `/collect` is on by default per chat and saves only processed detector crops plus local training metadata; it never saves a full source photo.
 
 The current detector file is about 6.2 MB and the current FastPlateOCR reader is about 5.3 MB. Python, Torch, and the remaining packages account for most of the installation and image size. This repository does not publish a measured minimum RAM or disk requirement.
 
@@ -75,6 +75,7 @@ DATABASE_PATH=./data/index.db
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
 PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
+COLLECTION_DIR=./collection
 
 # macOS / Linux paths:
 PLATE_DETECTOR_PYTHON=./.vision-venv/bin/python
@@ -99,7 +100,7 @@ bun start
 
 In the target chat, send `/verbose on`, then send a normal car photo as a **photo**, not a file. The bot will show the recognition result and detector/crop/OCR timing. Every validated plate is indexed immediately.
 
-Test clear, angled, distant, dark, and multi-car photos. `/verbose` can be disabled after checking the results; indexing remains enabled.
+Test clear, angled, distant, dark, and multi-car photos. `/verbose` can be disabled after checking the results; indexing remains enabled. Crop collection is also independent: it defaults to on, and `/collect off` stops future crop capture for the current chat.
 
 ## Using the bot
 
@@ -109,6 +110,8 @@ Test clear, angled, distant, dark, and multi-car photos. `/verbose` can be disab
 /list
 /verbose on
 /verbose off
+/collect on
+/collect off
 /lang en
 /lang uk
 ```

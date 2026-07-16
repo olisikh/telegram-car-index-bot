@@ -2,7 +2,7 @@
 
 The project ships as one self-contained image: Bun, compiled bot, Python, YOLO detector, FastPlateOCR, the plate-detector weights, and the OCR model are included. It needs no Ollama, host Python installation, or runtime model download on the target machine. Telegram photo downloads still use the Bot API; detector and OCR inference stay inside the container.
 
-The named Docker volume `car-index-data` persists `/app/data`, including SQLite and its WAL/SHM files. Application stdout and stderr are handled by Docker's logging driver and are viewed with `docker compose logs`; they are not files in the named volume. The active runtime keeps source photos and crops in memory only.
+The named Docker volume `car-index-data` persists `/app/data`, including SQLite and its WAL/SHM files. A visible host folder, `./collection` by default, is bind-mounted at `/app/collection` for opt-in plate-crop training data. Application stdout and stderr are handled by Docker's logging driver and are viewed with `docker compose logs`; they are not files in the named volume. The runtime never saves full Telegram source photos.
 
 ## Windows laptop: recommended method
 
@@ -40,7 +40,19 @@ Use the Docker method on Windows; it is simpler than installing Bun, Python, YOL
 
 This image is CPU-only: no NVIDIA driver, CUDA, WSL GPU setup, Bun, or Python installation is required on the host. This repository does not publish a measured minimum RAM allocation; if Docker Desktop has a custom memory cap, recognition must be tested under that cap.
 
-Docker uses a named Linux volume for the database rather than a Windows folder mount, avoiding Windows-file-system performance and permission issues.
+Docker uses a named Linux volume for the database rather than a Windows folder mount, avoiding Windows-file-system performance and permission issues. The separate `collection` bind mount is intentionally visible: it is the portable crop corpus, not operational database state.
+
+### Collection folder and handoff
+
+`/collect` is enabled by default in each allowed chat. It writes only standard-pass processed plate crops plus `manifest.jsonl`; it never writes the original Telegram photo. Run `/collect off` in a group to stop future collection for that group, or `/collect on` to resume.
+
+The default Windows folder is `C:\CarIndexBot\collection`. Zip that folder when handing a dataset to Oleksii. To use another local drive, set `HOST_COLLECTION_DIR` in `.env`, for example:
+
+```dotenv
+HOST_COLLECTION_DIR=D:\CarIndexTraining\collection
+```
+
+Do not use `docker compose down -v` for ordinary updates; it deletes the index volume. The host collection folder is outside that volume and remains available for inspection and backup.
 
 ## Brother's installation
 

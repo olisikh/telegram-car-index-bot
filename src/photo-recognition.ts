@@ -19,14 +19,19 @@ export interface IncomingPhoto {
   readonly mediaGroupId?: string;
 }
 
+export interface PhotoRecognitionOptions {
+  readonly collectionDirectory?: string;
+}
+
 export const processPhotoRecognition = async (
   dependencies: PhotoRecognitionDependencies,
   photo: IncomingPhoto,
+  options?: PhotoRecognitionOptions,
 ): Promise<TimedRecognition> => {
   const image = await dependencies.download(photo.fileId);
   const recognition = dependencies.analyzeTimed
-    ? await dependencies.analyzeTimed(image)
-    : { plates: await dependencies.analyze(image), timings: {} };
+    ? options ? await dependencies.analyzeTimed(image, options) : await dependencies.analyzeTimed(image)
+    : { plates: options ? await dependencies.analyze(image, options) : await dependencies.analyze(image), timings: {} };
   await Effect.runPromise(indexRecognizedPhotoMessage(dependencies.store, {
     chatId: photo.chatId,
     messageId: photo.messageId,

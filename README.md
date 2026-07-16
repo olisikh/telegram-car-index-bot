@@ -2,7 +2,7 @@
 
 A privacy-conscious Telegram bot for allow-listed auto-service groups. It analyzes **photo messages only** with one local pipeline: **YOLO plate detection → in-memory crop → FastPlateOCR**. It indexes strictly validated vehicle plates and links users to the original Telegram message.
 
-The active runtime does not persist downloaded photos, crops, captions, or general chat text. Image bytes exist only in memory while one local recognition job runs.
+The active runtime does not persist downloaded source photos, captions, or general chat text. Image bytes exist only in memory while one local recognition job runs. `/collect` is enabled by default per chat and can save only the processed detector crops plus a portable local manifest for later offline training; `/collect off` stops future crop capture.
 
 For a new installation, start with the [Beginner setup guide](docs/BEGINNER-SETUP.md).
 
@@ -17,6 +17,8 @@ Send a photo containing a visible registration plate. Captions and ordinary text
 /list
 /verbose on
 /verbose off
+/collect on
+/collect off
 /lang en
 /lang uk
 ```
@@ -40,7 +42,7 @@ By default, a standard pass that finds no detector boxes triggers `wide` and `en
 
 Supported formats include Ukraine (all-Latin civilian series and four-digit National Police plates), Poland, Germany, Lithuania, Romania, Slovakia, Hungary, and Czechia.
 
-Recognition runs one photo at a time. `/verbose on` enables per-photo feedback for the current chat, including detector, crop, and OCR timings.
+Recognition runs one photo at a time. `/verbose on` enables per-photo feedback for the current chat, including detector, crop, and OCR timings. `/collect` is independent of `/verbose`, defaults to `on` per chat, and writes the standard-pass processed plate crops plus `manifest.jsonl` to the local collection directory; it never saves the original Telegram photo.
 
 ## Local dependencies
 
@@ -63,6 +65,7 @@ Example `.env`:
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
 PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
+COLLECTION_DIR=./collection
 PLATE_DETECTOR_PYTHON=./.vision-venv/bin/python
 PLATE_DETECTOR_SCRIPT=./scripts/detect_and_read_plates.py
 PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
@@ -86,7 +89,8 @@ For development: `bun run dev`.
 2. Add it to the intended **supergroup**; clickable source links require a supergroup.
 3. Disable BotFather **Group Privacy** so the bot receives ordinary photo updates. Re-add the bot if privacy was changed after it joined.
 4. Add the numeric supergroup ID to `ALLOWED_CHAT_IDS`.
-5. Send representative photos and use `/verbose on` to inspect recognition results and timings.
+5. Send `/start` in each group: collection is on by default; use `/collect off` to opt that chat out.
+6. Send representative photos and use `/verbose on` to inspect recognition results and timings.
 
 ## Documentation
 

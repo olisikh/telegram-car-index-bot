@@ -10,6 +10,8 @@ The bot has one recognition path and does **not** require Ollama:
 Telegram photo -> local YOLO detector -> FastPlateOCR -> SQLite index
 ```
 
+`/collect` is enabled by default per allowed chat. It writes only standard-pass processed plate crops and portable `manifest.jsonl` metadata under `COLLECTION_DIR`; `/collect off` stops future crop capture for that chat. Full Telegram source photos are never saved.
+
 Required repository-local artifacts:
 
 ```text
@@ -38,12 +40,13 @@ FastPlateOCR downloads its ONNX reader on first native use. The current reader f
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
 PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
+COLLECTION_DIR=./collection
 PLATE_DETECTOR_PYTHON=./.vision-venv/bin/python
 PLATE_DETECTOR_SCRIPT=./scripts/detect_and_read_plates.py
 PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
 ```
 
-`ALLOWED_CHAT_IDS` and `TELEGRAM_BOT_TOKEN` are mandatory. Every validated plate recognized in an allow-listed chat is indexed. `/verbose` controls only recognition feedback in the chat.
+`ALLOWED_CHAT_IDS` and `TELEGRAM_BOT_TOKEN` are mandatory. Every validated plate recognized in an allow-listed chat is indexed. `/verbose` controls only recognition feedback in the chat. `/collect` controls only crop collection, defaults to `on`, and is stored independently per chat; it does not affect recognition or indexing.
 
 Replies default to English. `/lang en` and `/lang uk` store a locale per chat in SQLite and install a chat-scoped command menu; `ua` is accepted as a Ukrainian alias. Deployments upgrading an existing database add the locale column with `en` while preserving `/verbose` state and historical indexed-message metadata.
 
@@ -100,7 +103,7 @@ Logs must not contain image bytes, captions, full model output, or tokens.
 1. Bot belongs to the intended supergroup.
 2. Group Privacy is disabled so normal photo updates arrive.
 3. Group ID is in `ALLOWED_CHAT_IDS`.
-4. Command menu contains `/find`, `/list`, `/verbose`, and `/lang` with English and Ukrainian descriptions.
+4. Command menu contains `/find`, `/list`, `/verbose`, `/collect`, and `/lang` with English and Ukrainian descriptions.
 5. Detector Python, script, and model pass the startup existence check.
 6. FastPlateOCR is installed in that Python environment.
 
@@ -124,4 +127,4 @@ Protect backups like the primary database: they contain plate numbers and Telegr
 
 ## Security hygiene
 
-Never commit `.env`, tokens, databases, logs, photos, or Telegram exports. Keep host and group access restricted. The bot has no remote OCR endpoint; do not add one without explicit approval.
+Never commit `.env`, tokens, databases, logs, source photos, collection crops, or Telegram exports. Keep host and group access restricted. The bot has no remote OCR endpoint; do not add one without explicit approval.

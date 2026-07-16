@@ -61,7 +61,8 @@ export class SqliteIndexStore implements IndexStore {
       CREATE TABLE IF NOT EXISTS chat_recognition_settings (
         chat_id INTEGER PRIMARY KEY,
         verbose INTEGER NOT NULL DEFAULT 0 CHECK (verbose IN (0, 1)),
-        locale TEXT NOT NULL DEFAULT 'en' CHECK (locale IN ('en', 'uk'))
+        locale TEXT NOT NULL DEFAULT 'en' CHECK (locale IN ('en', 'uk')),
+        collect INTEGER NOT NULL DEFAULT 1 CHECK (collect IN (0, 1))
       );
       CREATE VIRTUAL TABLE IF NOT EXISTS plate_fts USING fts5(plate, tokenize='trigram');
     `);
@@ -81,6 +82,9 @@ export class SqliteIndexStore implements IndexStore {
     const settingsColumns = this.database.query("PRAGMA table_info(chat_recognition_settings)").all() as Array<{ name: string }>;
     if (!settingsColumns.some((column) => column.name === "locale")) {
       this.database.exec("ALTER TABLE chat_recognition_settings ADD COLUMN locale TEXT NOT NULL DEFAULT 'en' CHECK (locale IN ('en', 'uk'))");
+    }
+    if (!settingsColumns.some((column) => column.name === "collect")) {
+      this.database.exec("ALTER TABLE chat_recognition_settings ADD COLUMN collect INTEGER NOT NULL DEFAULT 1 CHECK (collect IN (0, 1))");
     }
     const legacyRecords = this.database.query(`
       SELECT rowid, message_url AS messageUrl
@@ -122,6 +126,21 @@ export class SqliteIndexStore implements IndexStore {
       INSERT INTO chat_recognition_settings (chat_id, verbose)
       VALUES (?, ?)
       ON CONFLICT(chat_id) DO UPDATE SET verbose = excluded.verbose
+    `).run(chatId, enabled ? 1 : 0);
+  });
+
+  readonly collectionEnabled = (chatId: number): Effect.Effect<boolean> => Effect.sync(() => {
+    const setting = this.database.query(`
+      SELECT collect FROM chat_recognition_settings WHERE chat_id = ?
+    `).get(chatId) as { collect: number } | null | undefined;
+    return setting?.collect !== 0;
+  });
+
+  readonly setCollectionEnabled = (chatId: number, enabled: boolean): Effect.Effect<void> => Effect.sync(() => {
+    this.database.query(`
+      INSERT INTO chat_recognition_settings (chat_id, collect)
+      VALUES (?, ?)
+      ON CONFLICT(chat_id) DO UPDATE SET collect = excluded.collect
     `).run(chatId, enabled ? 1 : 0);
   });
 

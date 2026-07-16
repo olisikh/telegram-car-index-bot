@@ -8,6 +8,7 @@ describe("groupCommands", () => {
       { command: "find", description: "Find photos by plate" },
       { command: "list", description: "List indexed cars" },
       { command: "verbose", description: "Photo recognition status" },
+      { command: "collect", description: "Save plate crops for local training" },
       { command: "lang", description: "Set language: en or uk" },
     ]);
   });
@@ -18,6 +19,7 @@ describe("groupCommands", () => {
       { command: "find", description: "Знайти фото за ДНЗ" },
       { command: "list", description: "Список авто" },
       { command: "verbose", description: "Статус розпізнавання фото" },
+      { command: "collect", description: "Зберігати вирізки ДНЗ для локального навчання" },
       { command: "lang", description: "Обрати мову: en або uk" },
     ]);
   });

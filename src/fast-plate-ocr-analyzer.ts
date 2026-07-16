@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
+import { appendCollectionManifest, collectedCrops } from "./collection";
 import { recognizedPlates } from "./recognized-plates";
-import type { PlateAnalyzer } from "./plate-analyzer";
+import type { PlateAnalysisOptions, PlateAnalyzer } from "./plate-analyzer";
 import type { RecognitionTimings, TimedRecognition } from "./recognition-timings";
 
 type ReaderRunner = (command: string, args: ReadonlyArray<string>, input: string, timeoutMs: number) => Promise<string>;
@@ -89,9 +90,10 @@ export class PythonFastPlateOcrAnalyzer implements PlateAnalyzer {
     this.run = options.run ?? runReaderProcess;
   }
 
-  readonly analyze = async (image: Uint8Array): Promise<ReadonlyArray<string>> => (await this.analyzeTimed(image)).plates;
+  readonly analyze = async (image: Uint8Array, options?: PlateAnalysisOptions): Promise<ReadonlyArray<string>> =>
+    (await this.analyzeTimed(image, options)).plates;
 
-  readonly analyzeTimed = async (image: Uint8Array): Promise<TimedRecognition> => {
+  readonly analyzeTimed = async (image: Uint8Array, options?: PlateAnalysisOptions): Promise<TimedRecognition> => {
     const profiles = ["standard", "wide", "enhanced"].slice(0, 1 + Math.min(2, Math.max(0, this.options.recoveryAttempts ?? 2)));
     const input = JSON.stringify({ imageBase64: Buffer.from(image).toString("base64") });
     const deadline = Date.now() + (this.options.timeoutMs ?? 60_000);
@@ -100,6 +102,7 @@ export class PythonFastPlateOcrAnalyzer implements PlateAnalyzer {
     for (const [index, profile] of profiles.entries()) {
       const remainingMs = deadline - Date.now();
       if (remainingMs < 1) throw timeoutError();
+      const collectionDirectory = index === 0 ? options?.collectionDirectory : undefined;
       const output = await this.run(
         this.options.pythonPath,
         [
@@ -107,15 +110,19 @@ export class PythonFastPlateOcrAnalyzer implements PlateAnalyzer {
           "--model", this.options.detectorModelPath,
           "--ocr-model", this.options.ocrModel,
           "--profile", profile,
+          ...(collectionDirectory ? ["--collection-dir", collectionDirectory] : []),
         ],
         input,
         remainingMs,
       );
+      const plates = recognizedPlates(output);
+      if (collectionDirectory) {
+        await appendCollectionManifest(collectionDirectory, this.options.ocrModel, plates, collectedCrops(output));
+      }
       const timings = readerTimings(output);
       totals.detectionMs += timings.detectionMs ?? 0;
       totals.croppingMs += timings.croppingMs ?? 0;
       totals.ocrMs += timings.ocrMs ?? 0;
-      const plates = recognizedPlates(output);
       if (index === 0 && plates.length > 0) return { plates, timings: totals };
       if (index === 0 && readerDetectionCount(output) > 0) return { plates: [], timings: totals };
       if (index > 0 && plates.length > 0) {

@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
-"""Detect and read license plates with FastPlateOCR, entirely in memory.
+"""Detect and read license plates with local YOLO and FastPlateOCR.
 
 Input:  {"imageBase64": "..."} via stdin
-Output: {"plates": ["AA1234BB"], "timings": {...}} via stdout
+Output: {"plates": ["AA1234BB"], "timings": {...}, "captures": [...]} via stdout
 
-Images are decoded, cropped, and recognized in process memory only. This script
-never writes Telegram media or crops to disk.
+Images are decoded and recognized in memory. When --collection-dir is supplied,
+only processed plate crops are written there; Telegram source media is never saved.
 """
 
 from __future__ import annotations
 
 import argparse
 import base64
+from datetime import datetime, timezone
 import json
+from pathlib import Path
 import sys
 from time import perf_counter
 from typing import Any
+from uuid import uuid4
 
 import cv2
 import numpy as np
@@ -38,6 +41,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--confidence", type=float, default=DEFAULT_CONFIDENCE)
     parser.add_argument("--profile", choices=PROFILES, default="standard")
     parser.add_argument("--ocr-model", default="cct-s-v2-global-model")
+    parser.add_argument("--collection-dir", help="Local directory for opt-in processed plate crops")
     return parser.parse_args()
 
 
@@ -64,6 +68,21 @@ def crop_plate(image: np.ndarray, box: list[float], pad_x_ratio: float, pad_y_ra
     return cv2.cvtColor(cv2.merge((enhanced, a_channel, b_channel)), cv2.COLOR_LAB2BGR)
 
 
+def save_crop(collection_root: Path, crop: np.ndarray, confidence: float, profile: str) -> dict[str, Any]:
+    sample_id = uuid4().hex
+    relative_path = Path("crops") / datetime.now(timezone.utc).date().isoformat() / f"{sample_id}.png"
+    destination = collection_root / relative_path
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if not cv2.imwrite(str(destination), crop):
+        raise OSError(f"unable to save collection crop: {destination}")
+    return {
+        "sampleId": sample_id,
+        "cropPath": relative_path.as_posix(),
+        "detectorConfidence": confidence,
+        "profile": profile,
+    }
+
+
 def main() -> int:
     args = parse_args()
     payload: dict[str, Any] = json.load(sys.stdin)
@@ -88,10 +107,14 @@ def main() -> int:
     detection_ms = round((perf_counter() - detection_started) * 1_000)
 
     cropping_started = perf_counter()
-    crops = [
-        cv2.cvtColor(crop_plate(image, box, pad_x_ratio, pad_y_ratio, scale, enhance), cv2.COLOR_BGR2RGB)
-        for _, box in sorted(detections, reverse=True)[:MAX_CROPS]
-    ]
+    collection_root = Path(args.collection_dir) if args.collection_dir else None
+    crops: list[np.ndarray] = []
+    captures: list[dict[str, Any]] = []
+    for detector_confidence, box in sorted(detections, reverse=True)[:MAX_CROPS]:
+        crop = crop_plate(image, box, pad_x_ratio, pad_y_ratio, scale, enhance)
+        crops.append(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
+        if collection_root:
+            captures.append(save_crop(collection_root, crop, detector_confidence, args.profile))
     cropping_ms = round((perf_counter() - cropping_started) * 1_000)
 
     ocr_started = perf_counter()
@@ -107,6 +130,7 @@ def main() -> int:
     ocr_ms = round((perf_counter() - ocr_started) * 1_000)
     print(json.dumps({
         "plates": plates,
+        "captures": captures,
         "detections": len(detections),
         "timings": {"detectionMs": detection_ms, "croppingMs": cropping_ms, "ocrMs": ocr_ms},
     }, separators=(",", ":")))

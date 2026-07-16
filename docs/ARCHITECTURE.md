@@ -15,12 +15,13 @@ Telegram photo update
   -> largest Telegram PhotoSize in memory
   -> one-at-a-time SerialQueue
   -> local Python worker: YOLO detector -> RGB crop(s) -> FastPlateOCR
+  -> when /collect is on: standard-pass crop PNG(s) + manifest.jsonl in local collection directory
   -> strict JSON parse, normalization, format validation
   -> SQLite index
   -> chat-scoped /find and /list
 ```
 
-The Python worker receives base64-encoded source image bytes inside JSON over stdin and returns JSON over stdout. It creates no temporary photo or crop files. YOLO may report more detections, but only the five highest-confidence regions are cropped and sent to OCR.
+The Python worker receives base64-encoded source image bytes inside JSON over stdin and returns JSON over stdout. It creates no temporary source-photo files. YOLO may report more detections, but only the five highest-confidence regions are cropped and sent to OCR. When collection is enabled for the chat, the standard pass additionally writes those processed crop PNGs to `COLLECTION_DIR` and TypeScript appends a `manifest.jsonl` receipt; recovery passes never create duplicate captures.
 
 `src/index.ts` is the runtime composition root. Legacy command/caption indexing helpers that remain elsewhere in `src/` are not registered by the active bot and do not make captions, ordinary text, video, animation, or document updates indexable.
 
@@ -31,6 +32,7 @@ The Python worker receives base64-encoded source image bytes inside JSON over st
 | `/find <plate>` | Show source-photo messages for one plate, or a paginated plate picker for a 3+ character fragment matching several plates. | Current chat only |
 | `/list` | Show unique plates, newest first, ten per page. | Current chat only |
 | `/verbose on` / `/verbose off` | Toggle per-photo recognition feedback. | Current chat only |
+| `/collect on` / `/collect off` | Enable or disable local processed-crop collection; default is on. | Current chat only |
 | `/lang en` / `/lang uk` | Persist the reply language; `ua` is accepted as a Ukrainian alias. | Current chat only |
 | `/start` | Show brief guidance. | Current allowed chat |
 
@@ -45,9 +47,10 @@ FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
 PLATE_DETECTOR_PYTHON=./.vision-venv/bin/python
 PLATE_DETECTOR_SCRIPT=./scripts/detect_and_read_plates.py
 PLATE_DETECTOR_MODEL=./models/license-plate-detector.pt
+COLLECTION_DIR=./collection
 ```
 
-Every normalized, validated plate returned by recognition is stored with its chat scope and source-message metadata. `/verbose` changes only chat feedback; it does not control indexing.
+Every normalized, validated plate returned by recognition is stored with its chat scope and source-message metadata. `/verbose` changes only chat feedback; it does not control indexing or collection. `/collect` is a per-chat opt-out setting that defaults to on and controls only the local crop corpus.
 
 English is the default reply language. `src/i18n.ts` provides one typed catalog for English and Ukrainian, including command descriptions, search/list text, media labels, recognition feedback, and duration formatting. `chat_recognition_settings.locale` persists `en` or `uk` independently per chat, and `/lang` installs the corresponding chat-scoped Telegram command menu. Existing databases migrate to `en` without changing their verbose setting or rewriting indexed-message metadata.
 
@@ -63,7 +66,7 @@ Verbose feedback is per-chat and off by default. It reports safe outcome categor
 
 ## Data and privacy
 
-`indexed_messages` stores the normalized plate, chat ID, message URL, limited media metadata, and creation time. `chat_recognition_settings` stores the per-chat verbose flag and locale. SQLite search uses a trigram FTS index over plate values only. No downloaded media or full caption/message body is stored.
+`indexed_messages` stores the normalized plate, chat ID, message URL, limited media metadata, and creation time. `chat_recognition_settings` stores the per-chat verbose flag, locale, and collection setting. SQLite search uses a trigram FTS index over plate values only. No downloaded source media or full caption/message body is stored. A collection-enabled chat writes only processed detector crops and manifest metadata to the configured local collection directory; those manifests omit chat IDs and Telegram links.
 
 Every source record and user-facing search/list operation is scoped by `chat_id`. The FTS table contains distinct normalized plate tokens without message content; every FTS-backed result query joins back to `indexed_messages` and filters by `chat_id`. Source links require a supergroup and are usable only by members who can access the source group.
 

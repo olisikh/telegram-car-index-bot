@@ -53,6 +53,7 @@ if (!Number.isSafeInteger(recoveryAttempts) || recoveryAttempts < 0 || recoveryA
 const detectorPythonPath = resolve(process.env.PLATE_DETECTOR_PYTHON ?? "./.vision-venv/bin/python");
 const detectorScriptPath = resolve(process.env.PLATE_DETECTOR_SCRIPT ?? "./scripts/detect_and_read_plates.py");
 const detectorModelPath = resolve(process.env.PLATE_DETECTOR_MODEL ?? "./models/license-plate-detector.pt");
+const collectionDirectory = resolve(process.env.COLLECTION_DIR ?? "./collection");
 for (const path of [detectorPythonPath, detectorScriptPath, detectorModelPath]) {
   if (!existsSync(path)) throw new Error(`detector-fast-ocr requires local file: ${path}`);
 }
@@ -210,6 +211,20 @@ bot.command("verbose", async (ctx) => {
     : text.verboseDisabled);
 });
 
+bot.command("collect", async (ctx) => {
+  if (!allowed(ctx.chat.id)) return;
+  const locale = await Effect.runPromise(database.chatLocale(ctx.chat.id));
+  const text = messages(locale);
+  const value = ctx.match.trim().toLowerCase();
+  if (value !== "on" && value !== "off") {
+    await ctx.reply(text.collectUsage);
+    return;
+  }
+  const enabled = value === "on";
+  await Effect.runPromise(database.setCollectionEnabled(ctx.chat.id, enabled));
+  await ctx.reply(enabled ? text.collectEnabled : text.collectDisabled);
+});
+
 bot.on("message:photo", async (ctx) => {
   if (!allowed(ctx.chat.id)) return;
   const largestPhoto = ctx.message.photo.at(-1);
@@ -222,6 +237,7 @@ bot.on("message:photo", async (ctx) => {
     username: chatUsername(ctx.chat),
   });
   try {
+    const collectionEnabled = await Effect.runPromise(database.collectionEnabled(ctx.chat.id));
     const recognition = await photoQueue.enqueue(async () => processPhotoRecognition({
       store: database,
       download: downloadPhoto,
@@ -233,7 +249,7 @@ bot.on("message:photo", async (ctx) => {
       fileId: largestPhoto.file_id,
       chatUsername: chatUsername(ctx.chat),
       mediaGroupId: ctx.message.media_group_id,
-    }));
+    }, collectionEnabled ? { collectionDirectory } : {}));
     const { plates, timings } = recognition;
     const verbose = await Effect.runPromise(database.verboseRecognitionEnabled(ctx.chat.id));
     if (verbose) {

@@ -37,7 +37,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PLATE_DETECTOR_PYTHON=/opt/venv/bin/python \
     PLATE_DETECTOR_SCRIPT=/app/scripts/detect_and_read_plates.py \
     PLATE_DETECTOR_MODEL=/app/models/license-plate-detector.pt \
-    FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
+    FAST_PLATE_OCR_MODEL=cct-s-v2-global-model \
+    COLLECTION_DIR=/app/collection
 RUN apt-get update && apt-get install --no-install-recommends -y \
       ca-certificates \
       libgl1 \
@@ -57,7 +58,7 @@ COPY --from=bun-build /app/dist ./dist
 COPY scripts ./scripts
 COPY --from=model-assets /models/license-plate-detector.pt /app/models/license-plate-detector.pt
 COPY --from=model-assets /root/.cache/fast-plate-ocr /root/.cache/fast-plate-ocr
-RUN mkdir -p /app/data \
+RUN mkdir -p /app/data /app/collection \
     && test -s /app/models/license-plate-detector.pt \
     && test -s /root/.cache/fast-plate-ocr/cct-s-v2-global-model/cct_s_v2_global.onnx
 

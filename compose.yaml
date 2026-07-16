@@ -9,8 +9,10 @@ services:
       PLATE_DETECTOR_PYTHON: /opt/venv/bin/python
       PLATE_DETECTOR_SCRIPT: /app/scripts/detect_and_read_plates.py
       PLATE_DETECTOR_MODEL: /app/models/license-plate-detector.pt
+      COLLECTION_DIR: /app/collection
     volumes:
       - car-index-data:/app/data
+      - ${HOST_COLLECTION_DIR:-./collection}:/app/collection
     restart: unless-stopped
 
 volumes:

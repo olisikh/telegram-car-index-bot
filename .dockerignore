@@ -5,6 +5,7 @@ node_modules
 .vision-venv
 models
 data
+collection
 dist
 coverage
 backups

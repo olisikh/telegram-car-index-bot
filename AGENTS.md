@@ -2,15 +2,16 @@
 
 ## Mission
 
-A privacy-conscious Telegram bot for auto-service workflows. It processes allow-listed Telegram **photo messages** through one local pipeline: **YOLO plate detector → in-memory crop → FastPlateOCR**. It indexes only strictly validated plates and links users back to the source message.
+A privacy-conscious Telegram bot for auto-service workflows. It processes allow-listed Telegram **photo messages** through one local pipeline: **YOLO plate detector → in-memory crop → FastPlateOCR**. It indexes only strictly validated plates and links users back to the source message. `/collect` enables or disables the separate local crop corpus per chat; collection is on by default.
 
-The active runtime stores normalized plate data, source-chat scope, message URL, timestamps, and limited media metadata. It does not persist source photos, crops, full captions, or general chat text.
+The active runtime stores normalized plate data, source-chat scope, message URL, timestamps, and limited media metadata. It does not persist source photos, full captions, or general chat text. When collection is enabled for a chat, it also writes only processed plate crops and a portable manifest to the configured local collection directory.
 
 ## Repository map
 
 - `src/index.ts` — Telegram composition root, allow-list, commands, and queue.
 - `scripts/detect_and_read_plates.py` — the single in-memory YOLO + FastPlateOCR worker.
 - `src/fast-plate-ocr-analyzer.ts` — bounded Python-worker adapter.
+- `src/collection.ts` — validates worker crop receipts and appends portable local manifests.
 - `src/plate-analyzer.ts` / `src/recognized-plates.ts` — analyzer contract and strict candidate parsing.
 - `src/photo-recognition.ts` — in-memory processing and unconditional indexing of validated plates.
 - `src/plates.ts` — normalization and supported-country validation.
@@ -23,7 +24,7 @@ The active runtime stores normalized plate data, source-chat scope, message URL,
 
 1. Every source record and user-facing result must retain and filter by `chat_id`. The plate-only FTS vocabulary may be global, but every FTS-backed result query must join to chat-scoped records.
 2. Check `ALLOWED_CHAT_IDS` in every handler and callback.
-3. Do not persist media bytes, captions, Telegram exports, or raw reader output.
+3. Do not persist source media bytes, captions, Telegram exports, or raw reader output. The sole exception is the explicit `/collect` setting: it saves only processed detector crops and minimal training metadata to the local collection directory.
 4. Keep `.env`, SQLite data, logs, and tokens out of Git.
 5. Treat FastPlateOCR output as untrusted; normalize and validate every candidate before indexing.
 6. The only recognition path is local YOLO → FastPlateOCR. Do not add strategy switches, Ollama readers, cloud OCR, or fallback paths without explicit user direction.
@@ -50,6 +51,7 @@ Core variables:
 PHOTO_RECOGNITION_TIMEOUT_MS=60000
 PHOTO_RECOGNITION_RECOVERY_ATTEMPTS=0|1|2
 FAST_PLATE_OCR_MODEL=cct-s-v2-global-model
+COLLECTION_DIR=./collection
 ```
 
 ## Development and deployment
