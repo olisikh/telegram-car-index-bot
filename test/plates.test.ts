@@ -27,6 +27,7 @@ describe("normalizePlate", () => {
     ["Slovakia", "BA123CD"],
     ["Hungary", "ABCD123"],
     ["Czechia", "1A23456"],
+    ["Switzerland", "VD573335"],
   ])("accepts a jammed standard %s plate", (_country, plate) => {
     expect(normalizePlate(plate)).toBe(plate);
   });

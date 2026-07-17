@@ -20,6 +20,8 @@ const PLATE_FORMATS: Record<string, RegExp> = {
   SK: /^[A-Z]{2}\d{3}[A-Z]{2}$/,
   HU: /^(?:[A-Z]{3}|[A-Z]{4})\d{3}$/,
   CZ: /^\d[A-Z]\d{5}$/,
+  // Swiss canton of Vaud plate, as read from the supplied reference photo.
+  CH_VD: /^VD\d{1,6}$/,
 };
 
 const CANDIDATE = /(?<![A-ZА-ЯІЇЄҐ0-9])([A-ZА-ЯІЇЄҐ]{2}\d{4}[A-ZА-ЯІЇЄҐ]{2})(?![A-ZА-ЯІЇЄҐ0-9])/giu;
